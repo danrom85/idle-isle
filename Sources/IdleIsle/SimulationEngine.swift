@@ -21,15 +21,31 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
 }
 
 final class SimulationEngine {
+    private static let defaultWorldSeed: UInt64 = 0x1D1E15E
+    private static weak var defaultWorldAuthority: SimulationEngine?
+
     private(set) var state: WorldState
     private var random: SeededGenerator
+    private let participatesInDefaultWorld: Bool
 
     init(seed: UInt64 = 0x1D1E15E, initialState: WorldState = WorldState()) {
         state = initialState
         random = SeededGenerator(seed: seed)
+        participatesInDefaultWorld = seed == Self.defaultWorldSeed
+
+        if participatesInDefaultWorld, Self.defaultWorldAuthority == nil {
+            Self.defaultWorldAuthority = self
+        }
     }
 
     func advance(by deltaTime: TimeInterval) -> WorldState {
+        if participatesInDefaultWorld,
+           let authority = Self.defaultWorldAuthority,
+           authority !== self {
+            state = authority.state
+            return state
+        }
+
         let delta = min(max(deltaTime, 0), 0.1)
         state.elapsedTime += delta
         state.simulatedHour = (state.simulatedHour + delta * 0.12).truncatingRemainder(dividingBy: 24)
