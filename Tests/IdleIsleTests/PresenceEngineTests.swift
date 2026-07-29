@@ -16,10 +16,16 @@ final class PresenceEngineTests: XCTestCase {
         XCTAssertTrue(engine.state.isPresent)
         XCTAssertEqual(engine.state.visitCount, 1)
 
+        var completedFirstVisit = false
         for _ in 0..<400 {
             _ = engine.advance(by: 0.1, world: world)
+            if engine.state.phase == .absent && engine.state.visitCount == 1 {
+                completedFirstVisit = true
+                break
+            }
         }
 
+        XCTAssertTrue(completedFirstVisit)
         XCTAssertEqual(engine.state.phase, .absent)
         XCTAssertEqual(engine.state.visitor, .none)
         XCTAssertGreaterThan(engine.state.nextArrivalIn, 0)
