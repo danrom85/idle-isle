@@ -46,7 +46,6 @@ final class PresenceEngine {
             if state.nextArrivalIn <= 0 {
                 beginVisit(selectVisitor(for: world))
             }
-
         case .arriving:
             state.progress = min(1, state.progress + delta / 2.4)
             state.phaseTimeRemaining -= delta
@@ -54,14 +53,12 @@ final class PresenceEngine {
                 state.phase = .lingering
                 state.phaseTimeRemaining = lingerDuration(for: state.visitor)
             }
-
         case .lingering:
             state.phaseTimeRemaining -= delta
             if state.phaseTimeRemaining <= 0 {
                 state.phase = .departing
                 state.phaseTimeRemaining = 2.6
             }
-
         case .departing:
             state.progress = max(0, state.progress - delta / 2.6)
             state.phaseTimeRemaining -= delta
@@ -87,15 +84,25 @@ final class PresenceEngine {
     private func selectVisitor(for world: WorldState) -> PresenceState.Visitor {
         let roll = random.unitInterval()
 
+        // Tide now acts as an ecological filter before time-of-day preferences.
+        // High water brings ocean life closer; low water shifts activity ashore.
+        if world.tideLevel > 0.72 {
+            if world.wind < 0.48 && roll < 0.44 { return .seaTurtle }
+            return roll < 0.82 ? .fishSchool : .gull
+        }
+
+        if world.tideLevel < 0.28 {
+            if world.dayPhase == .day && world.wind < 0.42 && roll < 0.38 { return .butterflies }
+            return roll < 0.76 ? .gull : .fishSchool
+        }
+
         switch world.dayPhase {
         case .night:
             return roll < 0.72 ? .seaTurtle : .fishSchool
-
         case .dawn, .sunset:
             if world.wind < 0.45 && roll < 0.34 { return .butterflies }
             if roll < 0.67 { return .gull }
             return .seaTurtle
-
         case .day:
             if world.wind > 0.64 { return roll < 0.72 ? .gull : .fishSchool }
             if world.cloudCover < 0.42 && roll < 0.34 { return .butterflies }
