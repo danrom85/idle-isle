@@ -36,6 +36,7 @@ final class SimulationEngine {
         state.dayPhase = Self.phase(for: state.simulatedHour)
 
         updateWeather(by: delta)
+        updateTide(by: delta)
         updateNeeds(by: delta)
         updateMemory(by: delta)
         updateCharacter(by: delta)
@@ -66,9 +67,13 @@ final class SimulationEngine {
         state.cloudCover += (state.targetCloudCover - state.cloudCover) * delta * 0.08
     }
 
+    private func updateTide(by delta: TimeInterval) {
+        state.tidePhase = (state.tidePhase + delta / 210).truncatingRemainder(dividingBy: 1)
+        state.tideLevel = 0.5 + sin(state.tidePhase * Double.pi * 2) * 0.5
+    }
+
     private func updateNeeds(by delta: TimeInterval) {
         guard state.activity != .sleeping else { return }
-
         state.hunger = min(1, state.hunger + delta * 0.005)
         state.curiosity = min(1, state.curiosity + delta * 0.003)
     }
@@ -80,26 +85,16 @@ final class SimulationEngine {
         case .walking:
             let windResistance = 1 - state.wind * 0.18
             state.memory.walkingDistance += delta * 0.085 * windResistance
-
         case .fishing:
             state.memory.fishingSeconds += delta
-
         case .watchingOcean:
             state.memory.oceanWatchingSeconds += delta
-
         case .resting, .idle, .sleeping:
             break
         }
 
-        // Places become familiar through time spent there, regardless of the
-        // named activity. This lets visible wear emerge from actual movement.
-        if abs(state.characterX - 0.59) < 0.08 {
-            state.memory.campfireSeconds += delta
-        }
-
-        if state.characterX > 0.68 {
-            state.memory.palmShadeSeconds += delta
-        }
+        if abs(state.characterX - 0.59) < 0.08 { state.memory.campfireSeconds += delta }
+        if state.characterX > 0.68 { state.memory.palmShadeSeconds += delta }
     }
 
     private func updateCharacter(by delta: TimeInterval) {
@@ -109,29 +104,23 @@ final class SimulationEngine {
             let windResistance = 1 - state.wind * 0.18
             state.characterX += direction * delta * 0.085 * windResistance
             state.energy = max(0, state.energy - delta * 0.007)
-
             if abs(state.destinationX - state.characterX) < 0.01 {
                 state.characterX = state.destinationX
                 chooseActivity()
             }
-
         case .fishing:
             state.energy = max(0, state.energy - delta * 0.005)
             state.hunger = max(0, state.hunger - delta * 0.030)
             state.curiosity = max(0, state.curiosity - delta * 0.008)
-
         case .watchingOcean:
             state.energy = max(0, state.energy - delta * 0.001)
             state.curiosity = max(0, state.curiosity - delta * 0.024)
-
         case .sleeping:
             state.energy = min(1, state.energy + delta * 0.030)
             state.hunger = min(1, state.hunger + delta * 0.002)
-
         case .resting:
             state.energy = min(1, state.energy + delta * 0.020)
             state.curiosity = max(0, state.curiosity - delta * 0.004)
-
         case .idle:
             state.energy = max(0, state.energy - delta * 0.001)
         }
@@ -160,8 +149,6 @@ final class SimulationEngine {
         }
 
         if state.energy < 0.30 {
-            // Familiar shade becomes more attractive over time. Early in his
-            // life he rests wherever he is; later he develops a preferred spot.
             if state.memory.palmShadeWear > 0.35 && state.characterX < 0.68 {
                 state.destinationX = 0.72
                 begin(.walking, duration: 12)
@@ -186,13 +173,10 @@ final class SimulationEngine {
         case 0..<walkingChance:
             state.destinationX = randomRange(0.26...0.72)
             begin(.walking, duration: 12)
-
         case walkingChance..<watchingThreshold:
             begin(.watchingOcean, duration: randomDuration(4...8))
-
         case watchingThreshold..<restingThreshold:
             begin(.resting, duration: randomDuration(3...6))
-
         default:
             begin(.idle, duration: randomDuration(2...5))
         }
@@ -200,15 +184,10 @@ final class SimulationEngine {
 
     private func begin(_ activity: WorldState.Activity, duration: TimeInterval) {
         if activity != state.activity {
-            if activity == .fishing {
-                state.memory.fishingTrips += 1
-            }
-            if activity == .sleeping {
-                state.memory.nightsSlept += 1
-            }
+            if activity == .fishing { state.memory.fishingTrips += 1 }
+            if activity == .sleeping { state.memory.nightsSlept += 1 }
             state.memory.lastRecordedActivity = activity
         }
-
         state.activity = activity
         state.activityTimeRemaining = duration
     }
@@ -222,6 +201,10 @@ final class SimulationEngine {
             candidates = state.cloudCover < 0.55
                 ? [.shootingStar, .fishJumps, .crabVisits, .none]
                 : [.fishJumps, .crabVisits, .none, .none]
+        } else if state.tideLevel < 0.38 {
+            candidates = [.crabVisits, .crabVisits, .gullPasses, .coconutFalls, .none]
+        } else if state.tideLevel > 0.68 {
+            candidates = [.fishJumps, .fishJumps, .gullPasses, .none]
         } else if state.wind > 0.62 {
             candidates = [.gullPasses, .coconutFalls, .fishJumps, .none]
         } else {
@@ -229,15 +212,11 @@ final class SimulationEngine {
         }
 
         state.ambientEvent = candidates[Int(random.next() % UInt64(candidates.count))]
-        if state.ambientEvent == .coconutFalls {
-            state.memory.coconutFallsWitnessed += 1
-        }
+        if state.ambientEvent == .coconutFalls { state.memory.coconutFallsWitnessed += 1 }
         state.nextAmbientEventIn = randomDuration(4...9)
     }
 
-    private func randomDuration(_ range: ClosedRange<Double>) -> Double {
-        randomRange(range)
-    }
+    private func randomDuration(_ range: ClosedRange<Double>) -> Double { randomRange(range) }
 
     private func randomRange(_ range: ClosedRange<Double>) -> Double {
         range.lowerBound + random.unitInterval() * (range.upperBound - range.lowerBound)
