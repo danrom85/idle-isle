@@ -27,4 +27,49 @@ final class SimulationEngineTests: XCTestCase {
         _ = engine.advance(by: 0.1)
         XCTAssertGreaterThan(engine.state.simulatedHour, initialHour)
     }
+
+    func testFishingSatisfiesHunger() {
+        var state = WorldState()
+        state.activity = .fishing
+        state.hunger = 0.8
+        state.activityTimeRemaining = 20
+
+        let engine = SimulationEngine(seed: 7, initialState: state)
+        for _ in 0..<100 {
+            _ = engine.advance(by: 0.1)
+        }
+
+        XCTAssertLessThan(engine.state.hunger, 0.8)
+    }
+
+    func testSleepingRestoresEnergy() {
+        var state = WorldState()
+        state.activity = .sleeping
+        state.energy = 0.2
+        state.activityTimeRemaining = 20
+
+        let engine = SimulationEngine(seed: 9, initialState: state)
+        for _ in 0..<100 {
+            _ = engine.advance(by: 0.1)
+        }
+
+        XCTAssertGreaterThan(engine.state.energy, 0.2)
+    }
+
+    func testWeatherMovesTowardTargetsWithoutJumping() {
+        var state = WorldState()
+        state.wind = 0.1
+        state.targetWind = 0.8
+        state.cloudCover = 0.2
+        state.targetCloudCover = 0.7
+        state.nextWeatherChangeIn = 100
+
+        let engine = SimulationEngine(seed: 11, initialState: state)
+        _ = engine.advance(by: 0.1)
+
+        XCTAssertGreaterThan(engine.state.wind, 0.1)
+        XCTAssertLessThan(engine.state.wind, 0.8)
+        XCTAssertGreaterThan(engine.state.cloudCover, 0.2)
+        XCTAssertLessThan(engine.state.cloudCover, 0.7)
+    }
 }
