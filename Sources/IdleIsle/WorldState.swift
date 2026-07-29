@@ -46,42 +46,29 @@ struct WorldState: Codable, Equatable, Sendable {
         var coconutFallsWitnessed: Int = 0
         var lastRecordedActivity: Activity = .idle
 
-        var pathWear: Double {
-            min(1, walkingDistance / 2.8)
-        }
-
-        var fishingSpotWear: Double {
-            min(1, fishingSeconds / 75)
-        }
-
-        var campfireWear: Double {
-            min(1, campfireSeconds / 80)
-        }
-
-        var palmShadeWear: Double {
-            min(1, palmShadeSeconds / 90)
-        }
-
-        var coconutFamiliarity: Double {
-            min(1, Double(coconutFallsWitnessed) / 10)
-        }
-
-        var rememberedDays: Int {
-            Int(totalLivedSeconds / 200)
-        }
+        var pathWear: Double { min(1, walkingDistance / 2.8) }
+        var fishingSpotWear: Double { min(1, fishingSeconds / 75) }
+        var campfireWear: Double { min(1, campfireSeconds / 80) }
+        var palmShadeWear: Double { min(1, palmShadeSeconds / 90) }
+        var coconutFamiliarity: Double { min(1, Double(coconutFallsWitnessed) / 10) }
+        var rememberedDays: Int { Int(totalLivedSeconds / 200) }
     }
 
     var elapsedTime: TimeInterval = 0
     var simulatedHour: Double = 8
     var dayPhase: DayPhase = .day
 
-    // Shared island conditions. These values should eventually drive every
-    // visible system: water, palms, smoke, clouds, wildlife, and sound.
+    // Shared island conditions. Every visible system should derive from these.
     var wind: Double = 0.22
     var targetWind: Double = 0.22
     var cloudCover: Double = 0.28
     var targetCloudCover: Double = 0.28
     var nextWeatherChangeIn: TimeInterval = 12
+
+    // The ocean completes one gentle tide cycle every 210 real seconds.
+    // Phase is normalized to 0...1; level is 0 at low tide and 1 at high tide.
+    var tidePhase: Double = 0.35
+    var tideLevel: Double = 0.90
 
     // Castaway state.
     var activity: Activity = .idle
@@ -94,8 +81,6 @@ struct WorldState: Codable, Equatable, Sendable {
     var activityTimeRemaining: TimeInterval = 2
     var nextAmbientEventIn: TimeInterval = 5
 
-    // History survives individual actions and, through WorldPersistence,
-    // survives individual launches.
     var memory = Memory()
 
     var mood: Mood {
@@ -108,6 +93,6 @@ struct WorldState: Codable, Equatable, Sendable {
 
     var debugSummary: String {
         let activityName = activity.rawValue == "watchingOcean" ? "Watching Ocean" : activity.rawValue.capitalized
-        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Memory day \(memory.rememberedDays)"
+        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Tide \(Int(tideLevel * 100))% • Memory day \(memory.rememberedDays)"
     }
 }
