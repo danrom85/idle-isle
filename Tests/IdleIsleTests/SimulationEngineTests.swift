@@ -35,9 +35,7 @@ final class SimulationEngineTests: XCTestCase {
         state.activityTimeRemaining = 20
 
         let engine = SimulationEngine(seed: 7, initialState: state)
-        for _ in 0..<100 {
-            _ = engine.advance(by: 0.1)
-        }
+        for _ in 0..<100 { _ = engine.advance(by: 0.1) }
 
         XCTAssertLessThan(engine.state.hunger, 0.8)
         XCTAssertGreaterThan(engine.state.memory.fishingSeconds, 9)
@@ -51,9 +49,7 @@ final class SimulationEngineTests: XCTestCase {
         state.activityTimeRemaining = 20
 
         let engine = SimulationEngine(seed: 9, initialState: state)
-        for _ in 0..<100 {
-            _ = engine.advance(by: 0.1)
-        }
+        for _ in 0..<100 { _ = engine.advance(by: 0.1) }
 
         XCTAssertGreaterThan(engine.state.energy, 0.2)
     }
@@ -66,9 +62,7 @@ final class SimulationEngineTests: XCTestCase {
         state.activityTimeRemaining = 100
 
         let engine = SimulationEngine(seed: 13, initialState: state)
-        for _ in 0..<100 {
-            _ = engine.advance(by: 0.1)
-        }
+        for _ in 0..<100 { _ = engine.advance(by: 0.1) }
 
         XCTAssertGreaterThan(engine.state.memory.walkingDistance, 0)
         XCTAssertGreaterThan(engine.state.memory.pathWear, 0)
@@ -91,6 +85,21 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertLessThan(engine.state.cloudCover, 0.7)
     }
 
+    func testTideChangesSmoothlyAndStaysBounded() {
+        var state = WorldState()
+        state.tidePhase = 0.1
+        state.tideLevel = 0.5
+
+        let engine = SimulationEngine(seed: 17, initialState: state)
+        let previousLevel = engine.state.tideLevel
+        _ = engine.advance(by: 0.1)
+
+        XCTAssertNotEqual(engine.state.tideLevel, previousLevel)
+        XCTAssertGreaterThanOrEqual(engine.state.tideLevel, 0)
+        XCTAssertLessThanOrEqual(engine.state.tideLevel, 1)
+        XCTAssertLessThan(abs(engine.state.tideLevel - previousLevel), 0.5)
+    }
+
     func testWorldStateRoundTripsThroughPersistence() throws {
         let temporaryDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -101,6 +110,8 @@ final class SimulationEngineTests: XCTestCase {
         state.memory.fishingTrips = 7
         state.memory.walkingDistance = 1.25
         state.characterX = 0.63
+        state.tidePhase = 0.77
+        state.tideLevel = 0.12
 
         try persistence.save(state)
         let loaded = persistence.load()
