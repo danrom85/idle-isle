@@ -22,7 +22,7 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
 
 final class SimulationEngine {
     private static let defaultWorldSeed: UInt64 = 0x1D1E15E
-    private static weak var defaultWorldAuthority: SimulationEngine?
+    private nonisolated(unsafe) static weak var defaultWorldAuthority: SimulationEngine?
 
     private(set) var state: WorldState
     private var random: SeededGenerator
