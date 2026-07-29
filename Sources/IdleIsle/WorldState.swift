@@ -1,14 +1,14 @@
 import Foundation
 
-struct WorldState: Equatable, Sendable {
-    enum DayPhase: String, CaseIterable, Sendable {
+struct WorldState: Codable, Equatable, Sendable {
+    enum DayPhase: String, CaseIterable, Codable, Sendable {
         case dawn
         case day
         case sunset
         case night
     }
 
-    enum Activity: String, CaseIterable, Sendable {
+    enum Activity: String, CaseIterable, Codable, Sendable {
         case idle
         case walking
         case fishing
@@ -17,7 +17,7 @@ struct WorldState: Equatable, Sendable {
         case watchingOcean
     }
 
-    enum AmbientEvent: String, CaseIterable, Sendable {
+    enum AmbientEvent: String, CaseIterable, Codable, Sendable {
         case none
         case gullPasses
         case fishJumps
@@ -26,12 +26,49 @@ struct WorldState: Equatable, Sendable {
         case shootingStar
     }
 
-    enum Mood: String, Sendable {
+    enum Mood: String, Codable, Sendable {
         case content
         case curious
         case hungry
         case tired
         case peaceful
+    }
+
+    struct Memory: Codable, Equatable, Sendable {
+        var totalLivedSeconds: TimeInterval = 0
+        var walkingDistance: Double = 0
+        var fishingSeconds: TimeInterval = 0
+        var campfireSeconds: TimeInterval = 0
+        var palmShadeSeconds: TimeInterval = 0
+        var oceanWatchingSeconds: TimeInterval = 0
+        var fishingTrips: Int = 0
+        var nightsSlept: Int = 0
+        var coconutFallsWitnessed: Int = 0
+        var lastRecordedActivity: Activity = .idle
+
+        var pathWear: Double {
+            min(1, walkingDistance / 2.8)
+        }
+
+        var fishingSpotWear: Double {
+            min(1, fishingSeconds / 75)
+        }
+
+        var campfireWear: Double {
+            min(1, campfireSeconds / 80)
+        }
+
+        var palmShadeWear: Double {
+            min(1, palmShadeSeconds / 90)
+        }
+
+        var coconutFamiliarity: Double {
+            min(1, Double(coconutFallsWitnessed) / 10)
+        }
+
+        var rememberedDays: Int {
+            Int(totalLivedSeconds / 200)
+        }
     }
 
     var elapsedTime: TimeInterval = 0
@@ -57,6 +94,10 @@ struct WorldState: Equatable, Sendable {
     var activityTimeRemaining: TimeInterval = 2
     var nextAmbientEventIn: TimeInterval = 5
 
+    // History survives individual actions and, through WorldPersistence,
+    // survives individual launches.
+    var memory = Memory()
+
     var mood: Mood {
         if hunger > 0.72 { return .hungry }
         if energy < 0.30 { return .tired }
@@ -67,6 +108,6 @@ struct WorldState: Equatable, Sendable {
 
     var debugSummary: String {
         let activityName = activity.rawValue == "watchingOcean" ? "Watching Ocean" : activity.rawValue.capitalized
-        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))%"
+        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Memory day \(memory.rememberedDays)"
     }
 }
