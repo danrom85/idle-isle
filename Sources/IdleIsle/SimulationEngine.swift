@@ -37,6 +37,7 @@ final class SimulationEngine {
 
         updateWeather(by: delta)
         updateNeeds(by: delta)
+        updateMemory(by: delta)
         updateCharacter(by: delta)
         updateActivity(by: delta)
         updateAmbientEvents(by: delta)
@@ -61,7 +62,6 @@ final class SimulationEngine {
             state.nextWeatherChangeIn = randomDuration(10...22)
         }
 
-        // Ease instead of jumping so the island changes almost imperceptibly.
         state.wind += (state.targetWind - state.wind) * delta * 0.12
         state.cloudCover += (state.targetCloudCover - state.cloudCover) * delta * 0.08
     }
@@ -71,6 +71,35 @@ final class SimulationEngine {
 
         state.hunger = min(1, state.hunger + delta * 0.005)
         state.curiosity = min(1, state.curiosity + delta * 0.003)
+    }
+
+    private func updateMemory(by delta: TimeInterval) {
+        state.memory.totalLivedSeconds += delta
+
+        switch state.activity {
+        case .walking:
+            let windResistance = 1 - state.wind * 0.18
+            state.memory.walkingDistance += delta * 0.085 * windResistance
+
+        case .fishing:
+            state.memory.fishingSeconds += delta
+
+        case .watchingOcean:
+            state.memory.oceanWatchingSeconds += delta
+
+        case .resting, .idle, .sleeping:
+            break
+        }
+
+        // Places become familiar through time spent there, regardless of the
+        // named activity. This lets visible wear emerge from actual movement.
+        if abs(state.characterX - 0.59) < 0.08 {
+            state.memory.campfireSeconds += delta
+        }
+
+        if state.characterX > 0.68 {
+            state.memory.palmShadeSeconds += delta
+        }
     }
 
     private func updateCharacter(by delta: TimeInterval) {
@@ -115,8 +144,6 @@ final class SimulationEngine {
     }
 
     private func chooseActivity() {
-        // Hard needs come first. The castaway does not choose randomly when
-        // hungry, exhausted, or when the island has gone to sleep.
         if state.dayPhase == .night && state.energy < 0.92 {
             begin(.sleeping, duration: randomDuration(7...12))
             return
@@ -133,7 +160,14 @@ final class SimulationEngine {
         }
 
         if state.energy < 0.30 {
-            begin(.resting, duration: randomDuration(4...8))
+            // Familiar shade becomes more attractive over time. Early in his
+            // life he rests wherever he is; later he develops a preferred spot.
+            if state.memory.palmShadeWear > 0.35 && state.characterX < 0.68 {
+                state.destinationX = 0.72
+                begin(.walking, duration: 12)
+            } else {
+                begin(.resting, duration: randomDuration(4...8))
+            }
             return
         }
 
@@ -142,11 +176,10 @@ final class SimulationEngine {
             return
         }
 
-        // Soft choices are weighted by current conditions. Strong wind makes
-        // quiet shelter more attractive; clear daylight encourages wandering.
         let roll = random.unitInterval()
         let walkingChance = max(0.12, 0.34 - state.wind * 0.20)
-        let watchingThreshold = walkingChance + 0.24 + (1 - state.cloudCover) * 0.08
+        let memoryBias = min(0.08, state.memory.oceanWatchingSeconds / 700)
+        let watchingThreshold = walkingChance + 0.24 + (1 - state.cloudCover) * 0.08 + memoryBias
         let restingThreshold = watchingThreshold + 0.18 + state.wind * 0.08
 
         switch roll {
@@ -166,6 +199,16 @@ final class SimulationEngine {
     }
 
     private func begin(_ activity: WorldState.Activity, duration: TimeInterval) {
+        if activity != state.activity {
+            if activity == .fishing {
+                state.memory.fishingTrips += 1
+            }
+            if activity == .sleeping {
+                state.memory.nightsSlept += 1
+            }
+            state.memory.lastRecordedActivity = activity
+        }
+
         state.activity = activity
         state.activityTimeRemaining = duration
     }
@@ -186,6 +229,9 @@ final class SimulationEngine {
         }
 
         state.ambientEvent = candidates[Int(random.next() % UInt64(candidates.count))]
+        if state.ambientEvent == .coconutFalls {
+            state.memory.coconutFallsWitnessed += 1
+        }
         state.nextAmbientEventIn = randomDuration(4...9)
     }
 
