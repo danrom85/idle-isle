@@ -2,9 +2,12 @@ import AppKit
 import SpriteKit
 
 final class IslandScene: SKScene {
-    private let engine = SimulationEngine()
+    private let persistence: WorldPersistence
+    private let engine: SimulationEngine
     private var lastUpdateTime: TimeInterval = 0
+    private var saveCountdown: TimeInterval = 5
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
+    private var currentWind: Double = 0.22
 
     private let sky = SKSpriteNode(color: .systemBlue, size: .zero)
     private let stars = SKNode()
@@ -13,6 +16,13 @@ final class IslandScene: SKScene {
     private let farWaves = SKNode()
     private let nearWaves = SKNode()
     private let island = SKShapeNode()
+
+    private let memoryLayer = SKNode()
+    private let pathWear = SKShapeNode()
+    private let fishingWear = SKShapeNode()
+    private let campfireWear = SKShapeNode()
+    private let palmWear = SKShapeNode()
+
     private let palm = SKNode()
     private let palmCrown = SKNode()
     private let castaway = SKNode()
@@ -21,7 +31,11 @@ final class IslandScene: SKScene {
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
     override init(size: CGSize) {
+        let persistence = WorldPersistence()
+        self.persistence = persistence
+        self.engine = SimulationEngine(initialState: persistence.load() ?? WorldState())
         super.init(size: size)
+
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backgroundColor = .black
         buildWorld()
@@ -37,6 +51,10 @@ final class IslandScene: SKScene {
         view.window?.makeFirstResponder(view)
     }
 
+    override func willMove(from view: SKView) {
+        try? persistence.save(engine.state)
+    }
+
     override func keyDown(with event: NSEvent) {
         guard event.charactersIgnoringModifiers?.lowercased() == "d" else {
             super.keyDown(with: event)
@@ -48,8 +66,15 @@ final class IslandScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         lastUpdateTime = currentTime
+
         let state = engine.advance(by: delta)
         render(state)
+
+        saveCountdown -= delta
+        if saveCountdown <= 0 {
+            try? persistence.save(state)
+            saveCountdown = 5
+        }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -87,13 +112,20 @@ final class IslandScene: SKScene {
         island.zPosition = 0
         addChild(island)
 
+        memoryLayer.zPosition = 1
+        addChild(memoryLayer)
+        buildMemoryTraces()
+
         buildPalm()
+        palm.zPosition = 6
         addChild(palm)
 
         buildCastaway()
+        castaway.zPosition = 10
         addChild(castaway)
 
         buildCampfire()
+        campfire.zPosition = 8
         addChild(campfire)
 
         smokeLayer.zPosition = 14
@@ -113,6 +145,19 @@ final class IslandScene: SKScene {
         animateFire()
         animateClouds()
         beginSmoke()
+    }
+
+    private func buildMemoryTraces() {
+        pathWear.strokeColor = NSColor(calibratedRed: 0.60, green: 0.42, blue: 0.22, alpha: 1)
+        pathWear.fillColor = .clear
+        pathWear.lineCap = .round
+        memoryLayer.addChild(pathWear)
+
+        for node in [fishingWear, campfireWear, palmWear] {
+            node.fillColor = NSColor(calibratedRed: 0.60, green: 0.42, blue: 0.22, alpha: 1)
+            node.strokeColor = .clear
+            memoryLayer.addChild(node)
+        }
     }
 
     private func layoutWorld() {
@@ -140,6 +185,34 @@ final class IslandScene: SKScene {
         campfire.position = CGPoint(x: size.width * 0.05, y: -size.height * 0.12)
         smokeLayer.position = campfire.position
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
+
+        let fishingX = -size.width * 0.29 + size.width * 0.58 * 0.24
+        let fireX = -size.width * 0.29 + size.width * 0.58 * 0.59
+        let palmX = -size.width * 0.29 + size.width * 0.58 * 0.72
+        let sandY = -size.height * 0.10
+
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: fishingX, y: sandY - 4))
+        path.addCurve(
+            to: CGPoint(x: palmX, y: sandY + 2),
+            control1: CGPoint(x: -size.width * 0.08, y: sandY - 22),
+            control2: CGPoint(x: size.width * 0.08, y: sandY + 18)
+        )
+        pathWear.path = path
+        pathWear.lineWidth = max(8, size.height * 0.018)
+
+        fishingWear.path = CGPath(
+            ellipseIn: CGRect(x: fishingX - 38, y: sandY - 16, width: 76, height: 28),
+            transform: nil
+        )
+        campfireWear.path = CGPath(
+            ellipseIn: CGRect(x: fireX - 62, y: sandY - 22, width: 124, height: 40),
+            transform: nil
+        )
+        palmWear.path = CGPath(
+            ellipseIn: CGRect(x: palmX - 58, y: sandY - 20, width: 116, height: 36),
+            transform: nil
+        )
     }
 
     private func buildStars() {
@@ -247,6 +320,7 @@ final class IslandScene: SKScene {
         castaway.addChild(head)
 
         let hat = SKShapeNode(ellipseOf: CGSize(width: 38, height: 11))
+        hat.name = "hat"
         hat.fillColor = NSColor(calibratedRed: 0.88, green: 0.70, blue: 0.30, alpha: 1)
         hat.strokeColor = .clear
         hat.position.y = 69
@@ -324,9 +398,11 @@ final class IslandScene: SKScene {
         puff.strokeColor = .clear
         puff.position = CGPoint(x: 0, y: 52)
         smokeLayer.addChild(puff)
+
+        let drift = 8 + currentWind * 48
         puff.run(.sequence([
             .group([
-                .moveBy(x: 18, y: 72, duration: 3.2),
+                .moveBy(x: drift, y: 72, duration: 3.2),
                 .scale(to: 2.1, duration: 3.2),
                 .fadeOut(withDuration: 3.2)
             ]),
@@ -335,12 +411,25 @@ final class IslandScene: SKScene {
     }
 
     private func render(_ state: WorldState) {
+        currentWind = state.wind
         sky.color = skyColor(for: state.dayPhase)
         ocean.fillColor = oceanColor(for: state.dayPhase)
         stars.run(.fadeAlpha(to: state.dayPhase == .night ? 1 : 0, duration: 1.4))
-        clouds.alpha = state.dayPhase == .night ? 0.28 : 0.76
+
+        let daytimeCloudAlpha = 0.35 + state.cloudCover * 0.55
+        clouds.alpha = state.dayPhase == .night ? daytimeCloudAlpha * 0.42 : daytimeCloudAlpha
+        clouds.speed = CGFloat(0.55 + state.wind * 1.6)
+        farWaves.speed = CGFloat(0.72 + state.wind * 1.1)
+        nearWaves.speed = CGFloat(0.78 + state.wind * 1.4)
+        palmCrown.speed = CGFloat(0.65 + state.wind * 1.7)
+
         campfire.alpha = state.dayPhase == .day ? 0.72 : 1
         smokeLayer.alpha = state.dayPhase == .day ? 0.55 : 0.8
+
+        pathWear.alpha = CGFloat(state.memory.pathWear * 0.23)
+        fishingWear.alpha = CGFloat(state.memory.fishingSpotWear * 0.30)
+        campfireWear.alpha = CGFloat(state.memory.campfireWear * 0.24)
+        palmWear.alpha = CGFloat(state.memory.palmShadeWear * 0.22)
 
         castaway.position = CGPoint(
             x: -size.width * 0.29 + CGFloat(state.characterX) * size.width * 0.58,
@@ -364,18 +453,19 @@ final class IslandScene: SKScene {
             castaway.removeAction(forKey: "walkBounce")
         }
 
-        debugLabel.text = "Idle Isle • \(state.debugSummary)"
+        debugLabel.text = "Idle Isle • \(state.debugSummary) • Fish \(state.memory.fishingTrips) • Sleeps \(state.memory.nightsSlept)"
 
         if state.ambientEvent != lastAmbientEvent {
             lastAmbientEvent = state.ambientEvent
-            playAmbientEvent(state.ambientEvent)
+            playAmbientEvent(state.ambientEvent, memory: state.memory)
         }
     }
 
-    private func playAmbientEvent(_ event: WorldState.AmbientEvent) {
+    private func playAmbientEvent(_ event: WorldState.AmbientEvent, memory: WorldState.Memory) {
         switch event {
         case .none:
             break
+
         case .gullPasses:
             let gull = SKLabelNode(text: "⌁")
             gull.fontSize = 34
@@ -384,6 +474,7 @@ final class IslandScene: SKScene {
             gull.zPosition = 30
             addChild(gull)
             gull.run(.sequence([.moveTo(x: size.width / 2 + 30, duration: 4), .removeFromParent()]))
+
         case .fishJumps:
             let fish = SKLabelNode(text: "◁")
             fish.fontSize = 26
@@ -396,6 +487,7 @@ final class IslandScene: SKScene {
                 .group([.moveBy(x: 55, y: -70, duration: 0.55), .rotate(byAngle: .pi, duration: 0.55)]),
                 .removeFromParent()
             ]))
+
         case .coconutFalls:
             let coconut = SKShapeNode(circleOfRadius: 9)
             coconut.fillColor = NSColor(calibratedRed: 0.30, green: 0.16, blue: 0.07, alpha: 1)
@@ -409,6 +501,17 @@ final class IslandScene: SKScene {
                 .fadeOut(withDuration: 0.5),
                 .removeFromParent()
             ]))
+
+            if memory.coconutFamiliarity < 0.75,
+               let hat = castaway.childNode(withName: "hat") {
+                let reaction = 0.15 * (1 - memory.coconutFamiliarity)
+                hat.run(.sequence([
+                    .rotate(byAngle: reaction, duration: 0.09),
+                    .rotate(byAngle: -reaction * 2, duration: 0.12),
+                    .rotate(toAngle: 0, duration: 0.14)
+                ]))
+            }
+
         case .crabVisits:
             let crab = SKLabelNode(text: "⌘")
             crab.fontSize = 24
@@ -417,6 +520,7 @@ final class IslandScene: SKScene {
             crab.zPosition = 20
             addChild(crab)
             crab.run(.sequence([.moveBy(x: -170, y: 0, duration: 4.5), .removeFromParent()]))
+
         case .shootingStar:
             let star = SKShapeNode(rectOf: CGSize(width: 70, height: 3), cornerRadius: 2)
             star.fillColor = .white
