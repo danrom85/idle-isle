@@ -35,6 +35,8 @@ final class SimulationEngine {
         state.simulatedHour = (state.simulatedHour + delta * 0.12).truncatingRemainder(dividingBy: 24)
         state.dayPhase = Self.phase(for: state.simulatedHour)
 
+        updateWeather(by: delta)
+        updateNeeds(by: delta)
         updateCharacter(by: delta)
         updateActivity(by: delta)
         updateAmbientEvents(by: delta)
@@ -51,19 +53,56 @@ final class SimulationEngine {
         }
     }
 
+    private func updateWeather(by delta: TimeInterval) {
+        state.nextWeatherChangeIn -= delta
+        if state.nextWeatherChangeIn <= 0 {
+            state.targetWind = randomRange(0.05...0.82)
+            state.targetCloudCover = randomRange(0.05...0.88)
+            state.nextWeatherChangeIn = randomDuration(10...22)
+        }
+
+        // Ease instead of jumping so the island changes almost imperceptibly.
+        state.wind += (state.targetWind - state.wind) * delta * 0.12
+        state.cloudCover += (state.targetCloudCover - state.cloudCover) * delta * 0.08
+    }
+
+    private func updateNeeds(by delta: TimeInterval) {
+        guard state.activity != .sleeping else { return }
+
+        state.hunger = min(1, state.hunger + delta * 0.005)
+        state.curiosity = min(1, state.curiosity + delta * 0.003)
+    }
+
     private func updateCharacter(by delta: TimeInterval) {
         switch state.activity {
         case .walking:
             let direction = state.destinationX >= state.characterX ? 1.0 : -1.0
-            state.characterX += direction * delta * 0.085
+            let windResistance = 1 - state.wind * 0.18
+            state.characterX += direction * delta * 0.085 * windResistance
+            state.energy = max(0, state.energy - delta * 0.007)
+
             if abs(state.destinationX - state.characterX) < 0.01 {
                 state.characterX = state.destinationX
                 chooseActivity()
             }
-        case .fishing, .watchingOcean:
-            state.energy = max(0, state.energy - delta * 0.004)
-        case .sleeping, .resting:
-            state.energy = min(1, state.energy + delta * 0.018)
+
+        case .fishing:
+            state.energy = max(0, state.energy - delta * 0.005)
+            state.hunger = max(0, state.hunger - delta * 0.030)
+            state.curiosity = max(0, state.curiosity - delta * 0.008)
+
+        case .watchingOcean:
+            state.energy = max(0, state.energy - delta * 0.001)
+            state.curiosity = max(0, state.curiosity - delta * 0.024)
+
+        case .sleeping:
+            state.energy = min(1, state.energy + delta * 0.030)
+            state.hunger = min(1, state.hunger + delta * 0.002)
+
+        case .resting:
+            state.energy = min(1, state.energy + delta * 0.020)
+            state.curiosity = max(0, state.curiosity - delta * 0.004)
+
         case .idle:
             state.energy = max(0, state.energy - delta * 0.001)
         }
@@ -76,28 +115,51 @@ final class SimulationEngine {
     }
 
     private func chooseActivity() {
-        if state.dayPhase == .night && state.energy < 0.9 {
-            begin(.sleeping, duration: randomDuration(6...11))
+        // Hard needs come first. The castaway does not choose randomly when
+        // hungry, exhausted, or when the island has gone to sleep.
+        if state.dayPhase == .night && state.energy < 0.92 {
+            begin(.sleeping, duration: randomDuration(7...12))
             return
         }
 
-        if state.energy < 0.28 {
-            begin(.resting, duration: randomDuration(4...7))
+        if state.hunger > 0.62 && state.dayPhase != .night {
+            state.destinationX = 0.24
+            if abs(state.characterX - state.destinationX) > 0.025 {
+                begin(.walking, duration: 12)
+            } else {
+                begin(.fishing, duration: randomDuration(6...10))
+            }
             return
         }
 
+        if state.energy < 0.30 {
+            begin(.resting, duration: randomDuration(4...8))
+            return
+        }
+
+        if state.curiosity > 0.70 && state.wind < 0.68 {
+            begin(.watchingOcean, duration: randomDuration(5...9))
+            return
+        }
+
+        // Soft choices are weighted by current conditions. Strong wind makes
+        // quiet shelter more attractive; clear daylight encourages wandering.
         let roll = random.unitInterval()
+        let walkingChance = max(0.12, 0.34 - state.wind * 0.20)
+        let watchingThreshold = walkingChance + 0.24 + (1 - state.cloudCover) * 0.08
+        let restingThreshold = watchingThreshold + 0.18 + state.wind * 0.08
+
         switch roll {
-        case 0..<0.28:
+        case 0..<walkingChance:
             state.destinationX = randomRange(0.26...0.72)
             begin(.walking, duration: 12)
-        case 0.28..<0.48:
-            state.characterX = 0.24
-            begin(.fishing, duration: randomDuration(5...9))
-        case 0.48..<0.68:
+
+        case walkingChance..<watchingThreshold:
             begin(.watchingOcean, duration: randomDuration(4...8))
-        case 0.68..<0.84:
+
+        case watchingThreshold..<restingThreshold:
             begin(.resting, duration: randomDuration(3...6))
+
         default:
             begin(.idle, duration: randomDuration(2...5))
         }
@@ -114,9 +176,13 @@ final class SimulationEngine {
 
         let candidates: [WorldState.AmbientEvent]
         if state.dayPhase == .night {
-            candidates = [.shootingStar, .fishJumps, .crabVisits, .none]
+            candidates = state.cloudCover < 0.55
+                ? [.shootingStar, .fishJumps, .crabVisits, .none]
+                : [.fishJumps, .crabVisits, .none, .none]
+        } else if state.wind > 0.62 {
+            candidates = [.gullPasses, .coconutFalls, .fishJumps, .none]
         } else {
-            candidates = [.gullPasses, .fishJumps, .coconutFalls, .crabVisits, .none]
+            candidates = [.gullPasses, .fishJumps, .crabVisits, .none]
         }
 
         state.ambientEvent = candidates[Int(random.next() % UInt64(candidates.count))]
