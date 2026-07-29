@@ -7,12 +7,18 @@ final class IslandScene: SKScene {
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
 
     private let sky = SKSpriteNode(color: .systemBlue, size: .zero)
+    private let stars = SKNode()
+    private let clouds = SKNode()
     private let ocean = SKShapeNode()
+    private let farWaves = SKNode()
+    private let nearWaves = SKNode()
     private let island = SKShapeNode()
     private let palm = SKNode()
+    private let palmCrown = SKNode()
     private let castaway = SKNode()
     private let campfire = SKNode()
-    private let debugLabel = SKLabelNode(fontNamed: "SFMono-Regular")
+    private let smokeLayer = SKNode()
+    private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -28,6 +34,15 @@ final class IslandScene: SKScene {
     override func didMove(to view: SKView) {
         view.preferredFramesPerSecond = 30
         view.ignoresSiblingOrder = true
+        view.window?.makeFirstResponder(view)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        guard event.charactersIgnoringModifiers?.lowercased() == "d" else {
+            super.keyDown(with: event)
+            return
+        }
+        debugLabel.isHidden.toggle()
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -42,13 +57,29 @@ final class IslandScene: SKScene {
     }
 
     private func buildWorld() {
-        sky.zPosition = -20
+        sky.zPosition = -40
         addChild(sky)
+
+        stars.zPosition = -35
+        addChild(stars)
+        buildStars()
+
+        clouds.zPosition = -30
+        addChild(clouds)
+        buildClouds()
 
         ocean.fillColor = NSColor(calibratedRed: 0.09, green: 0.48, blue: 0.67, alpha: 1)
         ocean.strokeColor = .clear
-        ocean.zPosition = -10
+        ocean.zPosition = -20
         addChild(ocean)
+
+        farWaves.zPosition = -18
+        addChild(farWaves)
+        buildWaveBand(in: farWaves, count: 10, width: 92, alpha: 0.26)
+
+        nearWaves.zPosition = -16
+        addChild(nearWaves)
+        buildWaveBand(in: nearWaves, count: 8, width: 125, alpha: 0.42)
 
         island.fillColor = NSColor(calibratedRed: 0.93, green: 0.74, blue: 0.43, alpha: 1)
         island.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.25)
@@ -65,31 +96,111 @@ final class IslandScene: SKScene {
         buildCampfire()
         addChild(campfire)
 
+        smokeLayer.zPosition = 14
+        addChild(smokeLayer)
+
         debugLabel.fontSize = 13
         debugLabel.horizontalAlignmentMode = .left
         debugLabel.verticalAlignmentMode = .top
         debugLabel.fontColor = NSColor.white.withAlphaComponent(0.72)
         debugLabel.zPosition = 100
+        debugLabel.isHidden = true
         addChild(debugLabel)
 
         layoutWorld()
-        animateOcean()
+        animateWaves()
         animatePalm()
         animateFire()
+        animateClouds()
+        beginSmoke()
     }
 
     private func layoutWorld() {
         sky.size = size
 
-        let oceanRect = CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height * 0.49)
+        let oceanRect = CGRect(
+            x: -size.width / 2,
+            y: -size.height / 2,
+            width: size.width,
+            height: size.height * 0.49
+        )
         ocean.path = CGPath(rect: oceanRect, transform: nil)
 
-        let islandRect = CGRect(x: -size.width * 0.29, y: -size.height * 0.23, width: size.width * 0.58, height: size.height * 0.24)
+        let islandRect = CGRect(
+            x: -size.width * 0.29,
+            y: -size.height * 0.23,
+            width: size.width * 0.58,
+            height: size.height * 0.24
+        )
         island.path = CGPath(ellipseIn: islandRect, transform: nil)
 
+        farWaves.position = CGPoint(x: 0, y: -size.height * 0.12)
+        nearWaves.position = CGPoint(x: 0, y: -size.height * 0.36)
         palm.position = CGPoint(x: size.width * 0.17, y: -size.height * 0.02)
         campfire.position = CGPoint(x: size.width * 0.05, y: -size.height * 0.12)
+        smokeLayer.position = campfire.position
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
+    }
+
+    private func buildStars() {
+        for index in 0..<34 {
+            let radius = CGFloat(1 + (index % 3)) * 0.65
+            let star = SKShapeNode(circleOfRadius: radius)
+            star.fillColor = NSColor.white.withAlphaComponent(0.45 + CGFloat(index % 4) * 0.12)
+            star.strokeColor = .clear
+            let x = CGFloat((index * 83) % 1000) / 1000 - 0.5
+            let y = CGFloat((index * 47) % 360) / 720 + 0.08
+            star.position = CGPoint(x: x * size.width, y: y * size.height)
+            stars.addChild(star)
+            star.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 0.28, duration: 1.2 + Double(index % 4) * 0.4),
+                .fadeAlpha(to: 0.95, duration: 1.2 + Double(index % 3) * 0.5)
+            ])))
+        }
+        stars.alpha = 0
+    }
+
+    private func buildClouds() {
+        for index in 0..<3 {
+            let cloud = makeCloud(scale: 0.72 + CGFloat(index) * 0.18)
+            cloud.name = "cloud-\(index)"
+            cloud.position = CGPoint(
+                x: -size.width * 0.55 + CGFloat(index) * size.width * 0.4,
+                y: size.height * (0.18 + CGFloat(index % 2) * 0.12)
+            )
+            cloud.alpha = 0.76
+            clouds.addChild(cloud)
+        }
+    }
+
+    private func makeCloud(scale: CGFloat) -> SKNode {
+        let cloud = SKNode()
+        let pieces: [(CGPoint, CGSize)] = [
+            (CGPoint(x: -34, y: 0), CGSize(width: 58, height: 30)),
+            (CGPoint(x: 0, y: 12), CGSize(width: 72, height: 44)),
+            (CGPoint(x: 39, y: 1), CGSize(width: 62, height: 32))
+        ]
+
+        for (position, cloudSize) in pieces {
+            let puff = SKShapeNode(ellipseOf: cloudSize)
+            puff.fillColor = NSColor.white.withAlphaComponent(0.84)
+            puff.strokeColor = .clear
+            puff.position = position
+            cloud.addChild(puff)
+        }
+        cloud.setScale(scale)
+        return cloud
+    }
+
+    private func buildWaveBand(in node: SKNode, count: Int, width: CGFloat, alpha: CGFloat) {
+        for index in 0..<count {
+            let wave = SKShapeNode(rectOf: CGSize(width: width, height: 3), cornerRadius: 1.5)
+            wave.fillColor = NSColor.white.withAlphaComponent(alpha)
+            wave.strokeColor = .clear
+            wave.position.x = -size.width * 0.55 + CGFloat(index) * size.width / CGFloat(max(count - 1, 1))
+            wave.position.y = CGFloat((index % 3) * 11)
+            node.addChild(wave)
+        }
     }
 
     private func buildPalm() {
@@ -100,19 +211,29 @@ final class IslandScene: SKScene {
         trunk.zRotation = -0.09
         palm.addChild(trunk)
 
+        palmCrown.position.y = 150
+        palm.addChild(palmCrown)
+
         for angle in stride(from: 0.0, to: 360.0, by: 60.0) {
             let leaf = SKShapeNode(ellipseOf: CGSize(width: 115, height: 28))
             leaf.fillColor = NSColor(calibratedRed: 0.14, green: 0.52, blue: 0.24, alpha: 1)
             leaf.strokeColor = .clear
-            leaf.position.y = 150
             leaf.zRotation = angle * .pi / 180
             leaf.position.x = cos(leaf.zRotation) * 35
-            leaf.position.y += sin(leaf.zRotation) * 16
-            palm.addChild(leaf)
+            leaf.position.y = sin(leaf.zRotation) * 16
+            palmCrown.addChild(leaf)
         }
     }
 
     private func buildCastaway() {
+        let shadow = SKShapeNode(ellipseOf: CGSize(width: 38, height: 10))
+        shadow.name = "shadow"
+        shadow.fillColor = NSColor.black.withAlphaComponent(0.17)
+        shadow.strokeColor = .clear
+        shadow.position.y = -2
+        shadow.zPosition = -1
+        castaway.addChild(shadow)
+
         let body = SKShapeNode(rectOf: CGSize(width: 23, height: 44), cornerRadius: 8)
         body.fillColor = NSColor(calibratedRed: 0.82, green: 0.28, blue: 0.18, alpha: 1)
         body.strokeColor = .clear
@@ -149,16 +270,35 @@ final class IslandScene: SKScene {
         campfire.addChild(flame)
     }
 
-    private func animateOcean() {
-        let brighten = SKAction.run { [weak ocean] in ocean?.alpha = 0.90 }
-        let dim = SKAction.run { [weak ocean] in ocean?.alpha = 1.0 }
-        ocean.run(.repeatForever(.sequence([brighten, .wait(forDuration: 1.8), dim, .wait(forDuration: 1.8)])))
+    private func animateWaves() {
+        farWaves.run(.repeatForever(.sequence([
+            .moveBy(x: 24, y: 0, duration: 3.8),
+            .moveBy(x: -24, y: 0, duration: 3.8)
+        ])))
+        nearWaves.run(.repeatForever(.sequence([
+            .moveBy(x: -36, y: 0, duration: 2.7),
+            .moveBy(x: 36, y: 0, duration: 2.7)
+        ])))
+    }
+
+    private func animateClouds() {
+        for (index, cloud) in clouds.children.enumerated() {
+            let distance = size.width * (1.25 + CGFloat(index) * 0.15)
+            let duration = 48.0 + Double(index) * 17.0
+            cloud.run(.repeatForever(.sequence([
+                .moveBy(x: distance, y: 0, duration: duration),
+                .run { [weak self, weak cloud] in
+                    guard let self, let cloud else { return }
+                    cloud.position.x = -self.size.width * 0.65
+                }
+            ])))
+        }
     }
 
     private func animatePalm() {
-        palm.run(.repeatForever(.sequence([
-            .rotate(toAngle: -0.018, duration: 2.6, shortestUnitArc: true),
-            .rotate(toAngle: 0.018, duration: 2.6, shortestUnitArc: true)
+        palmCrown.run(.repeatForever(.sequence([
+            .rotate(toAngle: -0.035, duration: 2.6, shortestUnitArc: true),
+            .rotate(toAngle: 0.035, duration: 2.6, shortestUnitArc: true)
         ])))
     }
 
@@ -171,21 +311,49 @@ final class IslandScene: SKScene {
         ])))
     }
 
+    private func beginSmoke() {
+        smokeLayer.run(.repeatForever(.sequence([
+            .run { [weak self] in self?.spawnSmokePuff() },
+            .wait(forDuration: 1.25)
+        ])))
+    }
+
+    private func spawnSmokePuff() {
+        let puff = SKShapeNode(circleOfRadius: 8)
+        puff.fillColor = NSColor(calibratedWhite: 0.72, alpha: 0.34)
+        puff.strokeColor = .clear
+        puff.position = CGPoint(x: 0, y: 52)
+        smokeLayer.addChild(puff)
+        puff.run(.sequence([
+            .group([
+                .moveBy(x: 18, y: 72, duration: 3.2),
+                .scale(to: 2.1, duration: 3.2),
+                .fadeOut(withDuration: 3.2)
+            ]),
+            .removeFromParent()
+        ]))
+    }
+
     private func render(_ state: WorldState) {
         sky.color = skyColor(for: state.dayPhase)
         ocean.fillColor = oceanColor(for: state.dayPhase)
+        stars.run(.fadeAlpha(to: state.dayPhase == .night ? 1 : 0, duration: 1.4))
+        clouds.alpha = state.dayPhase == .night ? 0.28 : 0.76
         campfire.alpha = state.dayPhase == .day ? 0.72 : 1
+        smokeLayer.alpha = state.dayPhase == .day ? 0.55 : 0.8
 
         castaway.position = CGPoint(
             x: -size.width * 0.29 + CGFloat(state.characterX) * size.width * 0.58,
             y: -size.height * 0.10
         )
 
+        let activityScale: CGFloat = state.activity == .sleeping ? 0.82 : 1
         let facingScale: CGFloat = state.destinationX >= state.characterX ? 1 : -1
-        castaway.xScale = facingScale
-        castaway.setScale(state.activity == .sleeping ? 0.82 : 1)
+        castaway.xScale = facingScale * activityScale
+        castaway.yScale = activityScale
         castaway.zRotation = state.activity == .sleeping ? -.pi / 2 : 0
         castaway.alpha = state.activity == .sleeping ? 0.88 : 1
+        castaway.childNode(withName: "shadow")?.alpha = state.activity == .sleeping ? 0.45 : 1
 
         if state.activity == .walking && castaway.action(forKey: "walkBounce") == nil {
             castaway.run(.repeatForever(.sequence([
@@ -235,7 +403,12 @@ final class IslandScene: SKScene {
             coconut.position = CGPoint(x: palm.position.x, y: palm.position.y + 145)
             coconut.zPosition = 15
             addChild(coconut)
-            coconut.run(.sequence([.moveBy(x: -18, y: -148, duration: 0.8), .wait(forDuration: 1.2), .fadeOut(withDuration: 0.5), .removeFromParent()]))
+            coconut.run(.sequence([
+                .moveBy(x: -18, y: -148, duration: 0.8),
+                .wait(forDuration: 1.2),
+                .fadeOut(withDuration: 0.5),
+                .removeFromParent()
+            ]))
         case .crabVisits:
             let crab = SKLabelNode(text: "⌘")
             crab.fontSize = 24
@@ -252,7 +425,10 @@ final class IslandScene: SKScene {
             star.zRotation = -0.55
             star.zPosition = 25
             addChild(star)
-            star.run(.sequence([.group([.moveBy(x: -180, y: -110, duration: 0.65), .fadeOut(withDuration: 0.65)]), .removeFromParent()]))
+            star.run(.sequence([
+                .group([.moveBy(x: -180, y: -110, duration: 0.65), .fadeOut(withDuration: 0.65)]),
+                .removeFromParent()
+            ]))
         }
     }
 
