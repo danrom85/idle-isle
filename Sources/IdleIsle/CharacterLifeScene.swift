@@ -11,9 +11,11 @@ final class CharacterLifeScene: SKScene {
     private let fishingRod = SKShapeNode()
     private let fishingLine = SKShapeNode()
     private let float = SKShapeNode(circleOfRadius: 4)
-    private let oceanWatchingMat = SKShapeNode(ellipseOf: CGSize(width: 46, height: 14))
+    private let caughtFish = SKShapeNode()
+    private let oceanWatchingMat = SKShapeNode(ellipseOf: CGSize(width: 58, height: 16))
+    private let watchingFootprints = SKNode()
+    private let restingMat = SKShapeNode(ellipseOf: CGSize(width: 66, height: 18))
     private let restingZ = SKLabelNode(text: "z")
-    private let activityLabel = SKLabelNode(fontNamed: "Menlo")
 
     override init(size: CGSize) {
         let persistence = WorldPersistence()
@@ -62,18 +64,43 @@ final class CharacterLifeScene: SKScene {
         float.strokeColor = .clear
         activityLayer.addChild(float)
 
-        oceanWatchingMat.fillColor = NSColor(calibratedRed: 0.54, green: 0.34, blue: 0.16, alpha: 0.45)
-        oceanWatchingMat.strokeColor = .clear
+        let fishPath = CGMutablePath()
+        fishPath.move(to: CGPoint(x: -10, y: 0))
+        fishPath.addQuadCurve(to: CGPoint(x: 8, y: 0), control: CGPoint(x: 0, y: 8))
+        fishPath.addQuadCurve(to: CGPoint(x: -10, y: 0), control: CGPoint(x: 0, y: -8))
+        fishPath.move(to: CGPoint(x: 8, y: 0))
+        fishPath.addLine(to: CGPoint(x: 15, y: 7))
+        fishPath.addLine(to: CGPoint(x: 15, y: -7))
+        fishPath.closeSubpath()
+        caughtFish.path = fishPath
+        caughtFish.fillColor = NSColor(calibratedRed: 0.34, green: 0.69, blue: 0.74, alpha: 1)
+        caughtFish.strokeColor = NSColor.white.withAlphaComponent(0.38)
+        caughtFish.lineWidth = 1
+        caughtFish.isHidden = true
+        activityLayer.addChild(caughtFish)
+
+        oceanWatchingMat.fillColor = NSColor(calibratedRed: 0.54, green: 0.34, blue: 0.16, alpha: 0.42)
+        oceanWatchingMat.strokeColor = NSColor.white.withAlphaComponent(0.08)
+        oceanWatchingMat.lineWidth = 1
         activityLayer.addChild(oceanWatchingMat)
+
+        for offset in [-1.0, 1.0] {
+            let footprint = SKShapeNode(ellipseOf: CGSize(width: 7, height: 14))
+            footprint.fillColor = NSColor(calibratedRed: 0.48, green: 0.31, blue: 0.16, alpha: 0.22)
+            footprint.strokeColor = .clear
+            footprint.position = CGPoint(x: offset * 7, y: 0)
+            footprint.zRotation = CGFloat(offset * 0.11)
+            watchingFootprints.addChild(footprint)
+        }
+        activityLayer.addChild(watchingFootprints)
+
+        restingMat.fillColor = NSColor(calibratedRed: 0.40, green: 0.25, blue: 0.12, alpha: 0.28)
+        restingMat.strokeColor = .clear
+        activityLayer.addChild(restingMat)
 
         restingZ.fontSize = 19
         restingZ.fontColor = NSColor.white.withAlphaComponent(0.72)
         activityLayer.addChild(restingZ)
-
-        activityLabel.fontSize = 11
-        activityLabel.fontColor = NSColor.white.withAlphaComponent(0.48)
-        activityLabel.horizontalAlignmentMode = .center
-        activityLayer.addChild(activityLabel)
     }
 
     private func buildCrab() {
@@ -115,56 +142,96 @@ final class CharacterLifeScene: SKScene {
     private func renderWorldActivity(_ world: WorldState) {
         let castawayX = -size.width * 0.29 + CGFloat(world.characterX) * size.width * 0.58
         let sandY = -size.height * 0.10
+        let fishing = world.activity == .fishing
+        let watching = world.activity == .watchingOcean
+        let resting = world.activity == .resting
 
-        fishingRod.isHidden = world.activity != .fishing
-        fishingLine.isHidden = world.activity != .fishing
-        float.isHidden = world.activity != .fishing
-        oceanWatchingMat.isHidden = world.activity != .watchingOcean
-        restingZ.isHidden = world.activity != .resting
-        activityLabel.isHidden = ![WorldState.Activity.fishing, .watchingOcean, .resting].contains(world.activity)
+        fishingRod.isHidden = !fishing
+        fishingLine.isHidden = !fishing
+        float.isHidden = !fishing
+        caughtFish.isHidden = true
+        oceanWatchingMat.isHidden = !watching
+        watchingFootprints.isHidden = !watching
+        restingMat.isHidden = !resting
+        restingZ.isHidden = !resting
 
         switch world.activity {
         case .fishing:
-            let rodPath = CGMutablePath()
-            rodPath.move(to: CGPoint(x: castawayX + 8, y: sandY + 42))
-            rodPath.addLine(to: CGPoint(x: castawayX - 42, y: sandY + 78))
-            fishingRod.path = rodPath
-
-            let linePath = CGMutablePath()
-            linePath.move(to: CGPoint(x: castawayX - 42, y: sandY + 78))
-            linePath.addQuadCurve(
-                to: CGPoint(x: castawayX - 94, y: sandY - 58),
-                control: CGPoint(x: castawayX - 104, y: sandY + 22)
-            )
-            fishingLine.path = linePath
-            float.position = CGPoint(x: castawayX - 94, y: sandY - 58)
-            float.run(.repeatForever(.sequence([
-                .moveBy(x: 0, y: 3, duration: 0.55),
-                .moveBy(x: 0, y: -3, duration: 0.55)
-            ])), withKey: "bob")
-            activityLabel.text = "fishing"
-            activityLabel.position = CGPoint(x: castawayX, y: sandY + 88)
+            renderFishing(at: CGPoint(x: castawayX, y: sandY), world: world)
 
         case .watchingOcean:
-            oceanWatchingMat.position = CGPoint(x: castawayX, y: sandY - 4)
-            activityLabel.text = "watching the tide"
-            activityLabel.position = CGPoint(x: castawayX, y: sandY + 72)
+            oceanWatchingMat.position = CGPoint(x: castawayX - 2, y: sandY - 5)
+            oceanWatchingMat.zRotation = -0.04
+            watchingFootprints.position = CGPoint(x: castawayX + 5, y: sandY + 2)
+            watchingFootprints.alpha = 0.55
 
         case .resting:
-            restingZ.position = CGPoint(x: castawayX + 24, y: sandY + 74)
-            restingZ.run(.repeatForever(.sequence([
-                .group([.moveBy(x: 8, y: 12, duration: 1.1), .fadeOut(withDuration: 1.1)]),
-                .run { [weak self] in
-                    self?.restingZ.position = CGPoint(x: castawayX + 24, y: sandY + 74)
-                    self?.restingZ.alpha = 1
-                }
-            ])), withKey: "restingZ")
-            activityLabel.text = "resting"
-            activityLabel.position = CGPoint(x: castawayX, y: sandY + 76)
+            restingMat.position = CGPoint(x: castawayX + 4, y: sandY - 5)
+            restingMat.zRotation = 0.06
+            restingZ.position = CGPoint(x: castawayX + 25, y: sandY + 73)
+            if restingZ.action(forKey: "restingZ") == nil {
+                restingZ.run(.repeatForever(.sequence([
+                    .group([.moveBy(x: 8, y: 12, duration: 1.1), .fadeOut(withDuration: 1.1)]),
+                    .run { [weak self] in
+                        self?.restingZ.position = CGPoint(x: castawayX + 25, y: sandY + 73)
+                        self?.restingZ.alpha = 1
+                    }
+                ])), withKey: "restingZ")
+            }
 
         default:
             float.removeAction(forKey: "bob")
             restingZ.removeAction(forKey: "restingZ")
+            restingZ.alpha = 1
+        }
+    }
+
+    private func renderFishing(at castaway: CGPoint, world: WorldState) {
+        let cycle = world.elapsedTime.truncatingRemainder(dividingBy: 12)
+        let isCasting = cycle < 1.2
+        let hasCatch = cycle > 10.6
+        let rodTip: CGPoint
+        let floatPosition: CGPoint
+
+        if isCasting {
+            let progress = CGFloat(cycle / 1.2)
+            rodTip = CGPoint(x: castaway.x - 18 - 25 * progress, y: castaway.y + 72 + 8 * sin(progress * .pi))
+            floatPosition = CGPoint(x: castaway.x - 28 - 66 * progress, y: castaway.y + 12 - 70 * progress)
+        } else if hasCatch {
+            let lift = CGFloat((cycle - 10.6) / 1.4)
+            rodTip = CGPoint(x: castaway.x - 34, y: castaway.y + 82)
+            floatPosition = CGPoint(x: castaway.x - 76 + 42 * lift, y: castaway.y - 52 + 88 * lift)
+            caughtFish.isHidden = false
+            caughtFish.position = CGPoint(x: floatPosition.x, y: floatPosition.y - 12)
+            caughtFish.zRotation = sin(CGFloat(world.elapsedTime) * 9) * 0.22
+        } else {
+            rodTip = CGPoint(x: castaway.x - 42, y: castaway.y + 78)
+            floatPosition = CGPoint(x: castaway.x - 94, y: castaway.y - 58)
+        }
+
+        let rodPath = CGMutablePath()
+        rodPath.move(to: CGPoint(x: castaway.x + 8, y: castaway.y + 42))
+        rodPath.addLine(to: rodTip)
+        fishingRod.path = rodPath
+
+        let linePath = CGMutablePath()
+        linePath.move(to: rodTip)
+        linePath.addQuadCurve(
+            to: floatPosition,
+            control: CGPoint(x: min(rodTip.x, floatPosition.x) - 12, y: (rodTip.y + floatPosition.y) * 0.5)
+        )
+        fishingLine.path = linePath
+        float.position = floatPosition
+
+        if !isCasting && !hasCatch {
+            if float.action(forKey: "bob") == nil {
+                float.run(.repeatForever(.sequence([
+                    .moveBy(x: 0, y: 3, duration: 0.55),
+                    .moveBy(x: 0, y: -3, duration: 0.55)
+                ])), withKey: "bob")
+            }
+        } else {
+            float.removeAction(forKey: "bob")
         }
     }
 
