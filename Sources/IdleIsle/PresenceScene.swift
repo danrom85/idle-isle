@@ -2,13 +2,14 @@ import AppKit
 import SpriteKit
 
 final class PresenceScene: SKScene {
-    private let worldEngine = SimulationEngine(seed: 0x50524553)
+    private let runtime: WorldRuntime
     private let presenceEngine = PresenceEngine()
     private var lastUpdateTime: TimeInterval = 0
     private var renderedVisitor: PresenceState.Visitor = .none
     private let visitorLayer = SKNode()
 
-    override init(size: CGSize) {
+    init(size: CGSize, runtime: WorldRuntime) {
+        self.runtime = runtime
         super.init(size: size)
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backgroundColor = .clear
@@ -29,7 +30,7 @@ final class PresenceScene: SKScene {
         let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         lastUpdateTime = currentTime
 
-        let world = worldEngine.advance(by: delta)
+        let world = runtime.state
         let presence = presenceEngine.advance(by: delta, world: world)
         render(presence)
     }

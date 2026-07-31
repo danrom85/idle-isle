@@ -2,7 +2,7 @@ import AppKit
 import SpriteKit
 
 final class CharacterLifeScene: SKScene {
-    private let worldEngine: SimulationEngine
+    private let runtime: WorldRuntime
     private let crabEngine = CrabEngine()
     private var lastUpdateTime: TimeInterval = 0
 
@@ -17,9 +17,8 @@ final class CharacterLifeScene: SKScene {
     private let restingMat = SKShapeNode(ellipseOf: CGSize(width: 66, height: 18))
     private let restingZ = SKLabelNode(text: "z")
 
-    override init(size: CGSize) {
-        let persistence = WorldPersistence()
-        worldEngine = SimulationEngine(initialState: persistence.load() ?? WorldState())
+    init(size: CGSize, runtime: WorldRuntime) {
+        self.runtime = runtime
         super.init(size: size)
 
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
@@ -41,7 +40,7 @@ final class CharacterLifeScene: SKScene {
         let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         lastUpdateTime = currentTime
 
-        let world = worldEngine.advance(by: delta)
+        let world = runtime.state
         let crabState = crabEngine.advance(by: delta, world: world)
         renderWorldActivity(world)
         renderCrab(crabState, world: world)

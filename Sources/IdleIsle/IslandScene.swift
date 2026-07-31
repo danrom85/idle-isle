@@ -2,8 +2,7 @@ import AppKit
 import SpriteKit
 
 final class IslandScene: SKScene {
-    private let persistence: WorldPersistence
-    private let engine: SimulationEngine
+    private let runtime: WorldRuntime
     private var lastUpdateTime: TimeInterval = 0
     private var saveCountdown: TimeInterval = 5
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
@@ -30,10 +29,8 @@ final class IslandScene: SKScene {
     private let smokeLayer = SKNode()
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
-    override init(size: CGSize) {
-        let persistence = WorldPersistence()
-        self.persistence = persistence
-        self.engine = SimulationEngine(initialState: persistence.load() ?? WorldState())
+    init(size: CGSize, runtime: WorldRuntime) {
+        self.runtime = runtime
         super.init(size: size)
 
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
@@ -52,7 +49,7 @@ final class IslandScene: SKScene {
     }
 
     override func willMove(from view: SKView) {
-        try? persistence.save(engine.state)
+        try? runtime.save()
     }
 
     override func keyDown(with event: NSEvent) {
@@ -67,12 +64,12 @@ final class IslandScene: SKScene {
         let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         lastUpdateTime = currentTime
 
-        let state = engine.advance(by: delta)
+        let state = runtime.advance(by: delta)
         render(state)
 
         saveCountdown -= delta
         if saveCountdown <= 0 {
-            try? persistence.save(state)
+            try? runtime.save()
             saveCountdown = 5
         }
     }

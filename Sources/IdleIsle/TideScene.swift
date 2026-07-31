@@ -2,15 +2,15 @@ import AppKit
 import SpriteKit
 
 final class TideScene: SKScene {
-    private let worldEngine = SimulationEngine(seed: 0x54494445)
-    private var lastUpdateTime: TimeInterval = 0
+    private let runtime: WorldRuntime
 
     private let wetSand = SKShapeNode()
     private let shallowWater = SKShapeNode()
     private let foam = SKShapeNode()
     private let foamGlints = SKNode()
 
-    override init(size: CGSize) {
+    init(size: CGSize, runtime: WorldRuntime) {
+        self.runtime = runtime
         super.init(size: size)
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backgroundColor = .clear
@@ -27,9 +27,7 @@ final class TideScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-        render(worldEngine.advance(by: delta))
+        render(runtime.state)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
