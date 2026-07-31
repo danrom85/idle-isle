@@ -12,6 +12,10 @@ struct WorldState: Codable, Equatable, Sendable {
         case idle
         case walking
         case fishing
+        case carryingFish
+        case cookingFish
+        case eatingFish
+        case reactingToCrab
         case resting
         case sleeping
         case watchingOcean
@@ -34,6 +38,20 @@ struct WorldState: Codable, Equatable, Sendable {
         case peaceful
     }
 
+    struct Fish: Codable, Equatable, Sendable {
+        enum State: String, Codable, Sendable {
+            case caught
+            case carried
+            case cooking
+            case cooked
+            case eaten
+            case stolen
+        }
+
+        var state: State = .caught
+        var cookingProgress: Double = 0
+    }
+
     struct Memory: Codable, Equatable, Sendable {
         var totalLivedSeconds: TimeInterval = 0
         var walkingDistance: Double = 0
@@ -42,6 +60,9 @@ struct WorldState: Codable, Equatable, Sendable {
         var palmShadeSeconds: TimeInterval = 0
         var oceanWatchingSeconds: TimeInterval = 0
         var fishingTrips: Int = 0
+        var fishCaught: Int = 0
+        var mealsEaten: Int = 0
+        var fishStolenByCrab: Int = 0
         var nightsSlept: Int = 0
         var coconutFallsWitnessed: Int = 0
         var lastRecordedActivity: Activity = .idle
@@ -81,6 +102,8 @@ struct WorldState: Codable, Equatable, Sendable {
     var activityTimeRemaining: TimeInterval = 2
     var nextAmbientEventIn: TimeInterval = 5
 
+    // Optional preserves compatibility with world saves created before fish existed.
+    var fish: Fish?
     var memory = Memory()
 
     var mood: Mood {
