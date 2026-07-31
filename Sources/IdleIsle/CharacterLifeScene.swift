@@ -7,6 +7,17 @@ final class CharacterLifeScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
 
     private let activityLayer = SKNode()
+    private let castawayRig = SKNode()
+    private let castawayShadow = SKShapeNode(ellipseOf: CGSize(width: 44, height: 11))
+    private let torso = SKShapeNode(rectOf: CGSize(width: 25, height: 43), cornerRadius: 8)
+    private let headGroup = SKNode()
+    private let head = SKShapeNode(circleOfRadius: 14)
+    private let hat = SKShapeNode(ellipseOf: CGSize(width: 38, height: 11))
+    private let leftArm = SKNode()
+    private let rightArm = SKNode()
+    private let leftLeg = SKNode()
+    private let rightLeg = SKNode()
+
     private let crab = SKNode()
     private let fishingRod = SKShapeNode()
     private let fishingLine = SKShapeNode()
@@ -25,6 +36,7 @@ final class CharacterLifeScene: SKScene {
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backgroundColor = .clear
         buildActivityProps()
+        buildCastawayRig()
         buildCrab()
     }
 
@@ -43,6 +55,7 @@ final class CharacterLifeScene: SKScene {
 
         let world = runtime.state
         let crabState = crabEngine.advance(by: delta, world: world)
+        renderCastaway(world)
         renderWorldActivity(world)
         renderCrab(crabState, world: world)
     }
@@ -106,6 +119,210 @@ final class CharacterLifeScene: SKScene {
         restingZ.fontSize = 19
         restingZ.fontColor = NSColor.white.withAlphaComponent(0.72)
         activityLayer.addChild(restingZ)
+    }
+
+    private func buildCastawayRig() {
+        castawayRig.zPosition = 45
+        addChild(castawayRig)
+
+        castawayShadow.name = "rig-shadow"
+        castawayShadow.fillColor = NSColor.black.withAlphaComponent(0.20)
+        castawayShadow.strokeColor = .clear
+        castawayShadow.position = CGPoint(x: 0, y: -2)
+        castawayShadow.zPosition = -2
+        castawayRig.addChild(castawayShadow)
+
+        let skin = NSColor(calibratedRed: 0.76, green: 0.52, blue: 0.32, alpha: 1)
+        let shirt = NSColor(calibratedRed: 0.82, green: 0.28, blue: 0.18, alpha: 1)
+        let shorts = NSColor(calibratedRed: 0.24, green: 0.35, blue: 0.45, alpha: 1)
+
+        torso.name = "torso"
+        torso.fillColor = shirt
+        torso.strokeColor = .clear
+        torso.position = CGPoint(x: 0, y: 24)
+        castawayRig.addChild(torso)
+
+        head.fillColor = skin
+        head.strokeColor = .clear
+        head.position = CGPoint(x: 0, y: 0)
+        headGroup.position = CGPoint(x: 0, y: 58)
+        headGroup.addChild(head)
+
+        hat.fillColor = NSColor(calibratedRed: 0.88, green: 0.70, blue: 0.30, alpha: 1)
+        hat.strokeColor = .clear
+        hat.position = CGPoint(x: 0, y: 12)
+        headGroup.addChild(hat)
+        castawayRig.addChild(headGroup)
+
+        buildLimb(leftArm, length: 31, width: 8, color: skin)
+        buildLimb(rightArm, length: 31, width: 8, color: skin)
+        leftArm.position = CGPoint(x: -13, y: 42)
+        rightArm.position = CGPoint(x: 13, y: 42)
+        castawayRig.addChild(leftArm)
+        castawayRig.addChild(rightArm)
+
+        buildLimb(leftLeg, length: 31, width: 10, color: shorts)
+        buildLimb(rightLeg, length: 31, width: 10, color: shorts)
+        leftLeg.position = CGPoint(x: -7, y: 10)
+        rightLeg.position = CGPoint(x: 7, y: 10)
+        leftLeg.zPosition = -1
+        rightLeg.zPosition = -1
+        castawayRig.addChild(leftLeg)
+        castawayRig.addChild(rightLeg)
+    }
+
+    private func buildLimb(_ limb: SKNode, length: CGFloat, width: CGFloat, color: NSColor) {
+        let segment = SKShapeNode(rectOf: CGSize(width: width, height: length), cornerRadius: width / 2)
+        segment.fillColor = color
+        segment.strokeColor = .clear
+        segment.position = CGPoint(x: 0, y: -length / 2)
+        limb.addChild(segment)
+    }
+
+    private func resetPose() {
+        castawayRig.zRotation = 0
+        castawayRig.yScale = 1
+        torso.position = CGPoint(x: 0, y: 24)
+        torso.zRotation = 0
+        headGroup.position = CGPoint(x: 0, y: 58)
+        headGroup.zRotation = 0
+        leftArm.position = CGPoint(x: -13, y: 42)
+        rightArm.position = CGPoint(x: 13, y: 42)
+        leftArm.zRotation = 0.12
+        rightArm.zRotation = -0.12
+        leftLeg.position = CGPoint(x: -7, y: 10)
+        rightLeg.position = CGPoint(x: 7, y: 10)
+        leftLeg.zRotation = 0.04
+        rightLeg.zRotation = -0.04
+        castawayShadow.position = CGPoint(x: 0, y: -2)
+        castawayShadow.xScale = 1
+        castawayShadow.alpha = 1
+    }
+
+    private func renderCastaway(_ world: WorldState) {
+        let sandY = -size.height * 0.10
+        let castawayX = worldX(world.characterX)
+        let facing: CGFloat = world.destinationX >= world.characterX ? 1 : -1
+        let time = CGFloat(world.elapsedTime)
+        resetPose()
+
+        castawayRig.position = CGPoint(x: castawayX, y: sandY)
+        castawayRig.xScale = facing
+        castawayRig.alpha = 1
+
+        switch world.activity {
+        case .walking, .carryingFish:
+            let stride = sin(time * 12)
+            castawayRig.position.y += abs(stride) * 3
+            leftArm.zRotation = 0.35 * stride
+            rightArm.zRotation = -0.35 * stride
+            leftLeg.zRotation = -0.42 * stride
+            rightLeg.zRotation = 0.42 * stride
+            if world.activity == .carryingFish {
+                leftArm.zRotation = -0.92
+                rightArm.zRotation = 0.72
+                headGroup.zRotation = -0.08
+            }
+
+        case .fishing:
+            let finalLift = world.activityTimeRemaining < 1.1
+            torso.zRotation = finalLift ? 0.16 : -0.08
+            leftLeg.zRotation = 0.24
+            rightLeg.zRotation = -0.22
+            leftArm.zRotation = finalLift ? -1.18 : -0.78
+            rightArm.zRotation = finalLift ? -0.82 : -1.10
+            headGroup.zRotation = finalLift ? 0.15 : -0.10
+
+        case .watchingOcean:
+            castawayRig.position.y -= 9
+            torso.position = CGPoint(x: 0, y: 18)
+            torso.zRotation = -0.16
+            headGroup.position = CGPoint(x: -2, y: 49)
+            headGroup.zRotation = -0.12 + sin(time * 0.7) * 0.025
+            leftLeg.position = CGPoint(x: -8, y: 5)
+            rightLeg.position = CGPoint(x: 8, y: 5)
+            leftLeg.zRotation = 1.12
+            rightLeg.zRotation = -1.02
+            leftArm.position = CGPoint(x: -13, y: 34)
+            rightArm.position = CGPoint(x: 13, y: 34)
+            leftArm.zRotation = 0.88
+            rightArm.zRotation = -0.88
+            castawayShadow.xScale = 1.25
+
+        case .resting:
+            castawayRig.position.y -= 10
+            torso.position = CGPoint(x: 0, y: 17)
+            torso.zRotation = 0.24
+            headGroup.position = CGPoint(x: 5, y: 47)
+            headGroup.zRotation = 0.22
+            leftLeg.position = CGPoint(x: -7, y: 4)
+            rightLeg.position = CGPoint(x: 7, y: 4)
+            leftLeg.zRotation = 1.28
+            rightLeg.zRotation = -0.28
+            leftArm.zRotation = 0.42
+            rightArm.zRotation = -0.12
+            castawayShadow.xScale = 1.35
+
+        case .sleeping:
+            castawayRig.position.y -= 10
+            castawayRig.zRotation = -.pi / 2
+            castawayRig.yScale = 0.92
+            leftArm.zRotation = 0.66
+            rightArm.zRotation = -0.48
+            leftLeg.zRotation = 0.44
+            rightLeg.zRotation = -0.38
+            headGroup.zRotation = 0.18
+            castawayShadow.position = CGPoint(x: 22, y: -1)
+            castawayShadow.xScale = 1.55
+            castawayRig.alpha = 0.92
+
+        case .cookingFish:
+            castawayRig.position.y -= 8
+            torso.position = CGPoint(x: 0, y: 18)
+            torso.zRotation = -0.28
+            headGroup.position = CGPoint(x: -5, y: 48)
+            headGroup.zRotation = -0.22
+            leftLeg.position = CGPoint(x: -8, y: 6)
+            rightLeg.position = CGPoint(x: 7, y: 5)
+            leftLeg.zRotation = 0.92
+            rightLeg.zRotation = -1.24
+            let tending = sin(time * 2.4) * 0.10
+            leftArm.zRotation = -1.08 + tending
+            rightArm.zRotation = -0.72 - tending
+            castawayShadow.xScale = 1.25
+
+        case .eatingFish:
+            castawayRig.position.y -= 4
+            torso.zRotation = -0.06
+            let bite = sin(time * 8)
+            leftArm.zRotation = -1.40 + bite * 0.08
+            rightArm.zRotation = -1.12 - bite * 0.08
+            headGroup.zRotation = 0.08 + max(0, bite) * 0.05
+            leftLeg.zRotation = 0.18
+            rightLeg.zRotation = -0.18
+
+        case .reactingToCrab:
+            torso.zRotation = -0.05
+            leftArm.zRotation = 2.15
+            rightArm.zRotation = -2.15
+            leftLeg.zRotation = 0.16
+            rightLeg.zRotation = -0.16
+            headGroup.zRotation = sin(time * 8) * 0.12
+            castawayRig.position.y += abs(sin(time * 9)) * 2
+
+        case .idle:
+            let gestureCycle = world.elapsedTime.truncatingRemainder(dividingBy: 18)
+            torso.zRotation = sin(time * 0.7) * 0.018
+            headGroup.zRotation = sin(time * 0.45) * 0.035
+            if gestureCycle > 13 && gestureCycle < 16 {
+                let progress = CGFloat((gestureCycle - 13) / 3)
+                rightArm.zRotation = -0.25 - sin(progress * .pi) * 1.55
+                headGroup.zRotation += sin(progress * .pi) * 0.10
+            } else if gestureCycle > 8 && gestureCycle < 10.5 {
+                leftArm.zRotation = 0.12 + sin(CGFloat((gestureCycle - 8) / 2.5) * .pi) * 0.55
+                rightArm.zRotation = -0.12 - sin(CGFloat((gestureCycle - 8) / 2.5) * .pi) * 0.55
+            }
+        }
     }
 
     private func buildCrab() {
@@ -223,13 +440,17 @@ final class CharacterLifeScene: SKScene {
             caughtFish.position = CGPoint(x: floatPosition.x, y: floatPosition.y - 12)
             caughtFish.zRotation = sin(CGFloat(world.elapsedTime) * 9) * 0.22
         } else {
-            rodTip = CGPoint(x: castaway.x - 42, y: castaway.y + 78)
-            floatPosition = CGPoint(x: castaway.x - 94, y: castaway.y - 58)
+            let tension = world.activityTimeRemaining < 2.4 ? CGFloat((2.4 - world.activityTimeRemaining) / 2.4) : 0
+            rodTip = CGPoint(x: castaway.x - 42 + tension * 5, y: castaway.y + 78 - tension * 8)
+            floatPosition = CGPoint(x: castaway.x - 94, y: castaway.y - 58 + tension * 5)
         }
 
         let rodPath = CGMutablePath()
         rodPath.move(to: CGPoint(x: castaway.x + 8, y: castaway.y + 42))
-        rodPath.addLine(to: rodTip)
+        rodPath.addQuadCurve(
+            to: rodTip,
+            control: CGPoint(x: (castaway.x + rodTip.x) * 0.5 - 5, y: max(castaway.y + 55, rodTip.y - 4))
+        )
         fishingRod.path = rodPath
 
         let linePath = CGMutablePath()
