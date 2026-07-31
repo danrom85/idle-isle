@@ -67,6 +67,41 @@ struct WorldState: Codable, Equatable, Sendable {
         var coconutFallsWitnessed: Int = 0
         var lastRecordedActivity: Activity = .idle
 
+        private enum CodingKeys: String, CodingKey {
+            case totalLivedSeconds
+            case walkingDistance
+            case fishingSeconds
+            case campfireSeconds
+            case palmShadeSeconds
+            case oceanWatchingSeconds
+            case fishingTrips
+            case fishCaught
+            case mealsEaten
+            case fishStolenByCrab
+            case nightsSlept
+            case coconutFallsWitnessed
+            case lastRecordedActivity
+        }
+
+        init() {}
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            totalLivedSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .totalLivedSeconds) ?? 0
+            walkingDistance = try container.decodeIfPresent(Double.self, forKey: .walkingDistance) ?? 0
+            fishingSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .fishingSeconds) ?? 0
+            campfireSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .campfireSeconds) ?? 0
+            palmShadeSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .palmShadeSeconds) ?? 0
+            oceanWatchingSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .oceanWatchingSeconds) ?? 0
+            fishingTrips = try container.decodeIfPresent(Int.self, forKey: .fishingTrips) ?? 0
+            fishCaught = try container.decodeIfPresent(Int.self, forKey: .fishCaught) ?? 0
+            mealsEaten = try container.decodeIfPresent(Int.self, forKey: .mealsEaten) ?? 0
+            fishStolenByCrab = try container.decodeIfPresent(Int.self, forKey: .fishStolenByCrab) ?? 0
+            nightsSlept = try container.decodeIfPresent(Int.self, forKey: .nightsSlept) ?? 0
+            coconutFallsWitnessed = try container.decodeIfPresent(Int.self, forKey: .coconutFallsWitnessed) ?? 0
+            lastRecordedActivity = try container.decodeIfPresent(Activity.self, forKey: .lastRecordedActivity) ?? .idle
+        }
+
         var pathWear: Double { min(1, walkingDistance / 2.8) }
         var fishingSpotWear: Double { min(1, fishingSeconds / 75) }
         var campfireWear: Double { min(1, campfireSeconds / 80) }
