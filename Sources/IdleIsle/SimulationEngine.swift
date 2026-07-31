@@ -142,8 +142,9 @@ final class SimulationEngine {
 
         case .cookingFish:
             state.energy = max(0, state.energy - delta * 0.001)
-            if state.fish != nil {
-                state.fish?.cookingProgress = min(1, (state.fish?.cookingProgress ?? 0) + delta / 7)
+            if var fish = state.fish {
+                fish.cookingProgress = min(1, fish.cookingProgress + delta / 7)
+                state.fish = fish
             }
 
         case .eatingFish:
@@ -184,8 +185,6 @@ final class SimulationEngine {
         case .reactingToCrab:
             chooseActivity()
         case .carryingFish:
-            // Movement normally ends this activity on arrival. This prevents a
-            // short timer from interrupting the trip to the fire.
             state.activityTimeRemaining = 1
         default:
             chooseActivity()
