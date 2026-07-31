@@ -37,18 +37,56 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.ambientEvent, .none)
     }
 
-    func testFishingSatisfiesHungerAndLeavesMemory() {
+    func testFishingCreatesSharedFishAndStartsCarryHome() {
         var state = WorldState()
         state.activity = .fishing
         state.hunger = 0.8
-        state.activityTimeRemaining = 20
+        state.activityTimeRemaining = 0.05
+        state.characterX = 0.24
 
         let engine = SimulationEngine(seed: 7, initialState: state)
-        for _ in 0..<100 { _ = engine.advance(by: 0.1) }
+        _ = engine.advance(by: 0.1)
 
+        XCTAssertEqual(engine.state.activity, .carryingFish)
+        XCTAssertEqual(engine.state.fish?.state, .carried)
+        XCTAssertEqual(engine.state.memory.fishCaught, 1)
+        XCTAssertEqual(engine.state.destinationX, 0.59, accuracy: 0.001)
+        XCTAssertGreaterThan(engine.state.hunger, 0.79)
+    }
+
+    func testFishIsCookedAndEatenBeforeHungerFalls() {
+        var state = WorldState()
+        state.activity = .cookingFish
+        state.hunger = 0.8
+        state.characterX = 0.59
+        state.activityTimeRemaining = 0.05
+        state.fish = WorldState.Fish(state: .cooking, cookingProgress: 0.99)
+
+        let engine = SimulationEngine(seed: 23, initialState: state)
+        _ = engine.advance(by: 0.1)
+
+        XCTAssertEqual(engine.state.activity, .eatingFish)
+        XCTAssertEqual(engine.state.fish?.state, .cooked)
+
+        let hungerBeforeEating = engine.state.hunger
+        for _ in 0..<20 { _ = engine.advance(by: 0.1) }
+
+        XCTAssertLessThan(engine.state.hunger, hungerBeforeEating)
+    }
+
+    func testFinishingMealClearsFishAndRecordsMemory() {
+        var state = WorldState()
+        state.activity = .eatingFish
+        state.hunger = 0.8
+        state.activityTimeRemaining = 0.05
+        state.fish = WorldState.Fish(state: .cooked, cookingProgress: 1)
+
+        let engine = SimulationEngine(seed: 29, initialState: state)
+        _ = engine.advance(by: 0.1)
+
+        XCTAssertNil(engine.state.fish)
+        XCTAssertEqual(engine.state.memory.mealsEaten, 1)
         XCTAssertLessThan(engine.state.hunger, 0.8)
-        XCTAssertGreaterThan(engine.state.memory.fishingSeconds, 9)
-        XCTAssertGreaterThan(engine.state.memory.fishingSpotWear, 0)
     }
 
     func testSleepingRestoresEnergy() {
@@ -117,10 +155,13 @@ final class SimulationEngineTests: XCTestCase {
 
         var state = WorldState()
         state.memory.fishingTrips = 7
+        state.memory.fishCaught = 3
+        state.memory.mealsEaten = 2
         state.memory.walkingDistance = 1.25
         state.characterX = 0.63
         state.tidePhase = 0.77
         state.tideLevel = 0.12
+        state.fish = WorldState.Fish(state: .cooking, cookingProgress: 0.4)
 
         try persistence.save(state)
         let loaded = persistence.load()
