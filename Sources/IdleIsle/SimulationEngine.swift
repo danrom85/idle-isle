@@ -22,6 +22,8 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
 
 final class SimulationEngine {
     private static let defaultWorldSeed: UInt64 = 0x1D1E15E
+    private static let fishingSpotX = 0.24
+    private static let campfireX = 0.59
     private nonisolated(unsafe) static weak var defaultWorldAuthority: SimulationEngine?
 
     private(set) var state: WorldState
@@ -103,45 +105,66 @@ final class SimulationEngine {
         state.memory.totalLivedSeconds += delta
 
         switch state.activity {
-        case .walking:
+        case .walking, .carryingFish:
             let windResistance = 1 - state.wind * 0.18
             state.memory.walkingDistance += delta * 0.085 * windResistance
         case .fishing:
             state.memory.fishingSeconds += delta
         case .watchingOcean:
             state.memory.oceanWatchingSeconds += delta
-        case .resting, .idle, .sleeping:
+        case .idle, .cookingFish, .eatingFish, .reactingToCrab, .resting, .sleeping:
             break
         }
 
-        if abs(state.characterX - 0.59) < 0.08 { state.memory.campfireSeconds += delta }
+        if abs(state.characterX - Self.campfireX) < 0.08 { state.memory.campfireSeconds += delta }
         if state.characterX > 0.68 { state.memory.palmShadeSeconds += delta }
     }
 
     private func updateCharacter(by delta: TimeInterval) {
         switch state.activity {
-        case .walking:
+        case .walking, .carryingFish:
             let direction = state.destinationX >= state.characterX ? 1.0 : -1.0
             let windResistance = 1 - state.wind * 0.18
             state.characterX += direction * delta * 0.085 * windResistance
             state.energy = max(0, state.energy - delta * 0.007)
             if abs(state.destinationX - state.characterX) < 0.01 {
                 state.characterX = state.destinationX
-                chooseActivity()
+                if state.activity == .carryingFish {
+                    beginCooking()
+                } else {
+                    chooseActivity()
+                }
             }
+
         case .fishing:
             state.energy = max(0, state.energy - delta * 0.005)
-            state.hunger = max(0, state.hunger - delta * 0.030)
             state.curiosity = max(0, state.curiosity - delta * 0.008)
+
+        case .cookingFish:
+            state.energy = max(0, state.energy - delta * 0.001)
+            if state.fish != nil {
+                state.fish?.cookingProgress = min(1, (state.fish?.cookingProgress ?? 0) + delta / 7)
+            }
+
+        case .eatingFish:
+            state.hunger = max(0, state.hunger - delta * 0.14)
+            state.energy = min(1, state.energy + delta * 0.012)
+
+        case .reactingToCrab:
+            state.energy = max(0, state.energy - delta * 0.003)
+
         case .watchingOcean:
             state.energy = max(0, state.energy - delta * 0.001)
             state.curiosity = max(0, state.curiosity - delta * 0.024)
+
         case .sleeping:
             state.energy = min(1, state.energy + delta * 0.030)
             state.hunger = min(1, state.hunger + delta * 0.002)
+
         case .resting:
             state.energy = min(1, state.energy + delta * 0.020)
             state.curiosity = max(0, state.curiosity - delta * 0.004)
+
         case .idle:
             state.energy = max(0, state.energy - delta * 0.001)
         }
@@ -150,17 +173,51 @@ final class SimulationEngine {
     private func updateActivity(by delta: TimeInterval) {
         state.activityTimeRemaining -= delta
         guard state.activityTimeRemaining <= 0 else { return }
-        chooseActivity()
+
+        switch state.activity {
+        case .fishing:
+            catchFish()
+        case .cookingFish:
+            finishCooking()
+        case .eatingFish:
+            finishMeal()
+        case .reactingToCrab:
+            chooseActivity()
+        case .carryingFish:
+            // Movement normally ends this activity on arrival. This prevents a
+            // short timer from interrupting the trip to the fire.
+            state.activityTimeRemaining = 1
+        default:
+            chooseActivity()
+        }
     }
 
     private func chooseActivity() {
+        if let fish = state.fish {
+            switch fish.state {
+            case .caught, .carried:
+                state.fish?.state = .carried
+                state.destinationX = Self.campfireX
+                begin(.carryingFish, duration: 12)
+                return
+            case .cooking:
+                begin(.cookingFish, duration: max(0.5, 7 * (1 - fish.cookingProgress)))
+                return
+            case .cooked:
+                begin(.eatingFish, duration: 4)
+                return
+            case .eaten, .stolen:
+                state.fish = nil
+            }
+        }
+
         if state.dayPhase == .night && state.energy < 0.92 {
             begin(.sleeping, duration: randomDuration(7...12))
             return
         }
 
         if state.hunger > 0.62 && state.dayPhase != .night {
-            state.destinationX = 0.24
+            state.destinationX = Self.fishingSpotX
             if abs(state.characterX - state.destinationX) > 0.025 {
                 begin(.walking, duration: 12)
             } else {
@@ -201,6 +258,41 @@ final class SimulationEngine {
         default:
             begin(.idle, duration: randomDuration(2...5))
         }
+    }
+
+    private func catchFish() {
+        state.fish = WorldState.Fish(state: .carried, cookingProgress: 0)
+        state.memory.fishCaught += 1
+        state.destinationX = Self.campfireX
+        begin(.carryingFish, duration: 12)
+    }
+
+    private func beginCooking() {
+        guard state.fish != nil else {
+            chooseActivity()
+            return
+        }
+        state.fish?.state = .cooking
+        begin(.cookingFish, duration: 7)
+    }
+
+    private func finishCooking() {
+        guard state.fish != nil else {
+            chooseActivity()
+            return
+        }
+        state.fish?.state = .cooked
+        state.fish?.cookingProgress = 1
+        begin(.eatingFish, duration: 4)
+    }
+
+    private func finishMeal() {
+        if state.fish != nil {
+            state.fish?.state = .eaten
+            state.memory.mealsEaten += 1
+        }
+        state.fish = nil
+        chooseActivity()
     }
 
     private func begin(_ activity: WorldState.Activity, duration: TimeInterval) {
