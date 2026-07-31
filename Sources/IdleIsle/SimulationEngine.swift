@@ -29,7 +29,12 @@ final class SimulationEngine {
     private let participatesInDefaultWorld: Bool
 
     init(seed: UInt64 = 0x1D1E15E, initialState: WorldState = WorldState()) {
-        state = initialState
+        var restoredState = initialState
+        if restoredState.ambientEvent == .crabVisits {
+            restoredState.ambientEvent = .none
+        }
+
+        state = restoredState
         random = SeededGenerator(seed: seed)
         participatesInDefaultWorld = seed == Self.defaultWorldSeed
 
@@ -215,16 +220,16 @@ final class SimulationEngine {
         let candidates: [WorldState.AmbientEvent]
         if state.dayPhase == .night {
             candidates = state.cloudCover < 0.55
-                ? [.shootingStar, .fishJumps, .crabVisits, .none]
-                : [.fishJumps, .crabVisits, .none, .none]
+                ? [.shootingStar, .fishJumps, .none]
+                : [.fishJumps, .none, .none]
         } else if state.tideLevel < 0.38 {
-            candidates = [.crabVisits, .crabVisits, .gullPasses, .coconutFalls, .none]
+            candidates = [.gullPasses, .coconutFalls, .fishJumps, .none]
         } else if state.tideLevel > 0.68 {
             candidates = [.fishJumps, .fishJumps, .gullPasses, .none]
         } else if state.wind > 0.62 {
             candidates = [.gullPasses, .coconutFalls, .fishJumps, .none]
         } else {
-            candidates = [.gullPasses, .fishJumps, .crabVisits, .none]
+            candidates = [.gullPasses, .fishJumps, .none]
         }
 
         state.ambientEvent = candidates[Int(random.next() % UInt64(candidates.count))]
