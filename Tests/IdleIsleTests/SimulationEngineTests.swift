@@ -28,6 +28,15 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertGreaterThan(engine.state.simulatedHour, initialHour)
     }
 
+    func testLegacyCrabEventIsClearedWhenStateLoads() {
+        var state = WorldState()
+        state.ambientEvent = .crabVisits
+
+        let engine = SimulationEngine(seed: 19, initialState: state)
+
+        XCTAssertEqual(engine.state.ambientEvent, .none)
+    }
+
     func testFishingSatisfiesHungerAndLeavesMemory() {
         var state = WorldState()
         state.activity = .fishing
