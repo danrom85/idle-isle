@@ -12,6 +12,7 @@ final class CharacterLifeScene: SKScene {
     private let fishingLine = SKShapeNode()
     private let float = SKShapeNode(circleOfRadius: 4)
     private let caughtFish = SKShapeNode()
+    private let cookingSmoke = SKShapeNode(circleOfRadius: 5)
     private let oceanWatchingMat = SKShapeNode(ellipseOf: CGSize(width: 58, height: 16))
     private let watchingFootprints = SKNode()
     private let restingMat = SKShapeNode(ellipseOf: CGSize(width: 66, height: 18))
@@ -78,6 +79,11 @@ final class CharacterLifeScene: SKScene {
         caughtFish.isHidden = true
         activityLayer.addChild(caughtFish)
 
+        cookingSmoke.fillColor = NSColor.white.withAlphaComponent(0.24)
+        cookingSmoke.strokeColor = .clear
+        cookingSmoke.isHidden = true
+        activityLayer.addChild(cookingSmoke)
+
         oceanWatchingMat.fillColor = NSColor(calibratedRed: 0.54, green: 0.34, blue: 0.16, alpha: 0.42)
         oceanWatchingMat.strokeColor = NSColor.white.withAlphaComponent(0.08)
         oceanWatchingMat.lineWidth = 1
@@ -139,7 +145,7 @@ final class CharacterLifeScene: SKScene {
     }
 
     private func renderWorldActivity(_ world: WorldState) {
-        let castawayX = -size.width * 0.29 + CGFloat(world.characterX) * size.width * 0.58
+        let castawayX = worldX(world.characterX)
         let sandY = -size.height * 0.10
         let fishing = world.activity == .fishing
         let watching = world.activity == .watchingOcean
@@ -149,6 +155,7 @@ final class CharacterLifeScene: SKScene {
         fishingLine.isHidden = !fishing
         float.isHidden = !fishing
         caughtFish.isHidden = true
+        cookingSmoke.isHidden = true
         oceanWatchingMat.isHidden = !watching
         watchingFootprints.isHidden = !watching
         restingMat.isHidden = !resting
@@ -157,6 +164,18 @@ final class CharacterLifeScene: SKScene {
         switch world.activity {
         case .fishing:
             renderFishing(at: CGPoint(x: castawayX, y: sandY), world: world)
+
+        case .carryingFish:
+            renderSharedFish(world, at: CGPoint(x: castawayX - 18, y: sandY + 42), rotation: -0.18)
+
+        case .cookingFish:
+            let fire = CGPoint(x: worldX(0.59), y: sandY + 11)
+            renderSharedFish(world, at: fire, rotation: 0.04)
+            renderCookingSmoke(at: fire, world: world)
+
+        case .eatingFish:
+            let bite = sin(CGFloat(world.elapsedTime) * 8) * 4
+            renderSharedFish(world, at: CGPoint(x: castawayX - 12 + bite, y: sandY + 59), rotation: -0.25)
 
         case .watchingOcean:
             oceanWatchingMat.position = CGPoint(x: castawayX - 2, y: sandY - 5)
@@ -186,18 +205,18 @@ final class CharacterLifeScene: SKScene {
     }
 
     private func renderFishing(at castaway: CGPoint, world: WorldState) {
-        let cycle = world.elapsedTime.truncatingRemainder(dividingBy: 12)
-        let isCasting = cycle < 1.2
-        let hasCatch = cycle > 10.6
+        let finalLift = world.activityTimeRemaining < 1.1
+        let cycle = world.elapsedTime.truncatingRemainder(dividingBy: 8)
+        let isCasting = cycle < 1.0 && !finalLift
         let rodTip: CGPoint
         let floatPosition: CGPoint
 
         if isCasting {
-            let progress = CGFloat(cycle / 1.2)
+            let progress = CGFloat(cycle)
             rodTip = CGPoint(x: castaway.x - 18 - 25 * progress, y: castaway.y + 72 + 8 * sin(progress * .pi))
             floatPosition = CGPoint(x: castaway.x - 28 - 66 * progress, y: castaway.y + 12 - 70 * progress)
-        } else if hasCatch {
-            let lift = CGFloat((cycle - 10.6) / 1.4)
+        } else if finalLift {
+            let lift = CGFloat(max(0, min(1, (1.1 - world.activityTimeRemaining) / 1.1)))
             rodTip = CGPoint(x: castaway.x - 34, y: castaway.y + 82)
             floatPosition = CGPoint(x: castaway.x - 76 + 42 * lift, y: castaway.y - 52 + 88 * lift)
             caughtFish.isHidden = false
@@ -222,7 +241,7 @@ final class CharacterLifeScene: SKScene {
         fishingLine.path = linePath
         float.position = floatPosition
 
-        if !isCasting && !hasCatch {
+        if !isCasting && !finalLift {
             if float.action(forKey: "bob") == nil {
                 float.run(.repeatForever(.sequence([
                     .moveBy(x: 0, y: 3, duration: 0.55),
@@ -234,11 +253,38 @@ final class CharacterLifeScene: SKScene {
         }
     }
 
+    private func renderSharedFish(_ world: WorldState, at position: CGPoint, rotation: CGFloat) {
+        guard let fish = world.fish else { return }
+        caughtFish.isHidden = fish.state == .eaten || fish.state == .stolen
+        caughtFish.position = position
+        caughtFish.zRotation = rotation + sin(CGFloat(world.elapsedTime) * 7) * 0.05
+
+        let progress = CGFloat(max(0, min(1, fish.cookingProgress)))
+        caughtFish.fillColor = NSColor(
+            calibratedRed: 0.34 + 0.36 * progress,
+            green: 0.69 - 0.35 * progress,
+            blue: 0.74 - 0.55 * progress,
+            alpha: 1
+        )
+    }
+
+    private func renderCookingSmoke(at fire: CGPoint, world: WorldState) {
+        cookingSmoke.isHidden = false
+        let rise = CGFloat(world.elapsedTime.truncatingRemainder(dividingBy: 1.6) / 1.6)
+        cookingSmoke.position = CGPoint(x: fire.x + 4 * sin(rise * .pi * 2), y: fire.y + 18 + 34 * rise)
+        cookingSmoke.alpha = 0.32 * (1 - rise)
+        cookingSmoke.setScale(0.7 + rise * 0.8)
+    }
+
+    private func worldX(_ normalizedX: Double) -> CGFloat {
+        -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
+    }
+
     private func renderCrab(_ state: CrabState, world: WorldState) {
         crab.isHidden = !state.isVisible
         guard state.isVisible else { return }
 
-        let shoreX = -size.width * 0.29 + CGFloat(state.positionX) * size.width * 0.58
+        let shoreX = worldX(state.positionX)
         let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
         crab.position = CGPoint(x: shoreX, y: -size.height * 0.155 + tideOffset)
 
@@ -261,7 +307,7 @@ final class CharacterLifeScene: SKScene {
         case .watchingCastaway:
             crab.alpha = 1
             crab.removeAction(forKey: "scuttle")
-            let castawayX = -size.width * 0.29 + CGFloat(world.characterX) * size.width * 0.58
+            let castawayX = worldX(world.characterX)
             crab.xScale = castawayX >= crab.position.x ? 1 : -1
             crab.zRotation = 0
         case .resting:
