@@ -190,6 +190,8 @@ final class SimulationEngineTests: XCTestCase {
         var state = WorldState()
         state.cloudCover = 0.1
         state.targetCloudCover = 0.1
+        // Hold the sky steady so the test isolates rainfall, not weather rolls.
+        state.nextWeatherChangeIn = 999
 
         let engine = SimulationEngine(seed: 3, initialState: state)
         for _ in 0..<1200 { _ = engine.advance(by: 0.1) }
@@ -217,5 +219,21 @@ final class SimulationEngineTests: XCTestCase {
                 || abs(engine.state.characterX - SimulationEngine.palmShadeX) < 0.05,
             "expected shelter under the palm, got x=\(engine.state.characterX) dest=\(engine.state.destinationX)"
         )
+    }
+
+    func testStrollsNeverParkInsideTheCampfire() {
+        let engine = SimulationEngine(seed: 23)
+
+        for _ in 0..<3000 {
+            _ = engine.advance(by: 0.1)
+            let state = engine.state
+            if state.activity == .walking {
+                XCTAssertGreaterThanOrEqual(
+                    abs(state.destinationX - SimulationEngine.campfireX),
+                    0.06,
+                    "stroll destination \(state.destinationX) lands inside the campfire"
+                )
+            }
+        }
     }
 }

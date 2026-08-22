@@ -172,14 +172,32 @@ final class CharacterLifeLayer: SKNode {
         headGroup.position = CGPoint(x: 0, y: 58)
         headGroup.addChild(head)
 
+        for x in [-4.5, 4.5] {
+            let eye = SKShapeNode(circleOfRadius: 1.6)
+            eye.fillColor = NSColor(calibratedWhite: 0.15, alpha: 1)
+            eye.strokeColor = .clear
+            eye.position = CGPoint(x: x, y: 3)
+            headGroup.addChild(eye)
+        }
+
         hat.fillColor = NSColor(calibratedRed: 0.88, green: 0.70, blue: 0.30, alpha: 1)
-        hat.strokeColor = .clear
-        hat.position = CGPoint(x: 0, y: 12)
+        hat.strokeColor = NSColor.black.withAlphaComponent(0.14)
+        hat.lineWidth = 1
+        hat.position = CGPoint(x: 0, y: 10)
         headGroup.addChild(hat)
+
+        let hatCrown = SKShapeNode(ellipseOf: CGSize(width: 22, height: 13))
+        hatCrown.fillColor = NSColor(calibratedRed: 0.94, green: 0.77, blue: 0.38, alpha: 1)
+        hatCrown.strokeColor = NSColor.black.withAlphaComponent(0.10)
+        hatCrown.lineWidth = 1
+        hatCrown.position = CGPoint(x: 0, y: 16)
+        headGroup.addChild(hatCrown)
         castawayRig.addChild(headGroup)
 
         buildLimb(leftArm, length: 31, width: 8, color: skin)
         buildLimb(rightArm, length: 31, width: 8, color: skin)
+        addLimbCap(to: leftArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
+        addLimbCap(to: rightArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
         leftArm.position = CGPoint(x: -13, y: 42)
         rightArm.position = CGPoint(x: 13, y: 42)
         castawayRig.addChild(leftArm)
@@ -187,6 +205,8 @@ final class CharacterLifeLayer: SKNode {
 
         buildLimb(leftLeg, length: 31, width: 10, color: shorts)
         buildLimb(rightLeg, length: 31, width: 10, color: shorts)
+        addLimbCap(to: leftLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
+        addLimbCap(to: rightLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
         leftLeg.position = CGPoint(x: -7, y: 10)
         rightLeg.position = CGPoint(x: 7, y: 10)
         leftLeg.zPosition = -1
@@ -201,6 +221,16 @@ final class CharacterLifeLayer: SKNode {
         segment.strokeColor = .clear
         segment.position = CGPoint(x: 0, y: -length / 2)
         limb.addChild(segment)
+    }
+
+    /// A small cap detail at the far end of a limb: hands, feet.
+    private func addLimbCap(to limb: SKNode, at distance: CGFloat, size: CGSize, color: NSColor) {
+        let cap = SKShapeNode(ellipseOf: size)
+        cap.fillColor = color
+        cap.strokeColor = NSColor.black.withAlphaComponent(0.12)
+        cap.lineWidth = 0.5
+        cap.position.y = -distance
+        limb.addChild(cap)
     }
 
     private func resetPose() {

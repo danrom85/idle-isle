@@ -10,7 +10,11 @@ public final class IslandScene: SKScene {
     private var whaleVisitCount = 0
     private var currentWind: Double = 0.22
 
-    private let sky = SKSpriteNode(color: .systemBlue, size: .zero)
+    private let sky = SKSpriteNode(texture: nil, size: .zero)
+    private var skyTextures: [WorldState.DayPhase: SKTexture] = [:]
+    private let celestial = SKNode()
+    private let sun = SKNode()
+    private let moon = SKNode()
     private let stars = SKNode()
     private let clouds = SKNode()
     private let ocean = SKShapeNode()
@@ -126,6 +130,8 @@ public final class IslandScene: SKScene {
         sky.zPosition = -40
         addChild(sky)
 
+        buildCelestials()
+
         stars.zPosition = -35
         addChild(stars)
         buildStars()
@@ -152,6 +158,8 @@ public final class IslandScene: SKScene {
         island.lineWidth = 3
         island.zPosition = 0
         addChild(island)
+
+        buildBeachDetail()
 
         memoryLayer.zPosition = 1
         addChild(memoryLayer)
@@ -194,6 +202,8 @@ public final class IslandScene: SKScene {
         fireflyLayer.zPosition = 100
         addChild(fireflyLayer)
 
+        buildVignette()
+
         // Layer order mirrors the previous overlay stack: shore effects,
         // then visitors, then the articulated castaway on top.
         tideLayer.zPosition = 110
@@ -202,6 +212,55 @@ public final class IslandScene: SKScene {
         addChild(tideLayer)
         addChild(presenceLayer)
         addChild(characterLifeLayer)
+    }
+
+    /// Small touches that make the island feel lived-on rather than drawn-on.
+    private func buildBeachDetail() {
+        let detail = SKNode()
+        detail.zPosition = 0.5
+        addChild(detail)
+
+        // A lighter sweep of dry sand along the top of the island.
+        let sandHighlight = SKShapeNode(ellipseOf: CGSize(width: size.width * 0.50, height: size.height * 0.15))
+        sandHighlight.fillColor = NSColor(calibratedRed: 0.97, green: 0.81, blue: 0.52, alpha: 0.55)
+        sandHighlight.strokeColor = .clear
+        sandHighlight.position = CGPoint(x: -size.width * 0.03, y: -size.height * 0.155)
+        detail.addChild(sandHighlight)
+
+        // A few weathered rocks along the shore.
+        let rocks: [(CGPoint, CGSize)] = [
+            (CGPoint(x: -size.width * 0.26, y: -size.height * 0.16), CGSize(width: 26, height: 16)),
+            (CGPoint(x: size.width * 0.24, y: -size.height * 0.19), CGSize(width: 34, height: 20)),
+            (CGPoint(x: size.width * 0.27, y: -size.height * 0.14), CGSize(width: 18, height: 12))
+        ]
+        for (position, rockSize) in rocks {
+            let rock = SKShapeNode(ellipseOf: rockSize)
+            rock.fillColor = NSColor(calibratedRed: 0.52, green: 0.51, blue: 0.49, alpha: 1)
+            rock.strokeColor = NSColor.black.withAlphaComponent(0.15)
+            rock.lineWidth = 1
+            rock.position = position
+            rock.zRotation = .pi / (3 + CGFloat.random(in: 0...2))
+            detail.addChild(rock)
+        }
+
+        // Tufts of dune grass scattered near the palm.
+        let grassXs: [CGFloat] = [-0.05, 0.02, 0.10, 0.14]
+        for (index, fraction) in grassXs.enumerated() {
+            let tuft = SKNode()
+            tuft.position = CGPoint(
+                x: size.width * fraction,
+                y: -size.height * (0.115 + CGFloat(index % 2) * 0.015)
+            )
+            for bladeIndex in 0..<5 {
+                let blade = SKShapeNode(rectOf: CGSize(width: 2.5, height: CGFloat(14 + (bladeIndex + index) % 4 * 5)), cornerRadius: 1)
+                blade.fillColor = NSColor(calibratedRed: 0.24, green: 0.52, blue: 0.26, alpha: 0.9)
+                blade.strokeColor = .clear
+                blade.position.y = 7
+                blade.zRotation = CGFloat(bladeIndex - 2) * 0.16
+                tuft.addChild(blade)
+            }
+            detail.addChild(tuft)
+        }
     }
 
     private func buildMemoryTraces() {
@@ -249,6 +308,39 @@ public final class IslandScene: SKScene {
 
             fireflyLayer.addChild(fly)
         }
+    }
+
+    /// A subtle radial darkening at the frame edges focuses the eye on the
+    /// island without reading as an effect.
+    private func buildVignette() {
+        let width = 64, height = 36
+        let context = CGContext(
+            data: nil, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        let colors = [
+            NSColor.black.withAlphaComponent(0).cgColor,
+            NSColor.black.withAlphaComponent(0).cgColor,
+            NSColor.black.withAlphaComponent(0.34).cgColor
+        ] as CFArray
+        let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors,
+            locations: [0, 0.62, 1]
+        )!
+        context.drawRadialGradient(
+            gradient,
+            startCenter: CGPoint(x: width / 2, y: height / 2), startRadius: 0,
+            endCenter: CGPoint(x: width / 2, y: height / 2), endRadius: CGFloat(width) * 0.72,
+            options: []
+        )
+
+        let vignette = SKSpriteNode(texture: SKTexture(cgImage: context.makeImage()!))
+        vignette.size = size
+        vignette.zPosition = 150
+        addChild(vignette)
     }
 
     /// Rain streaks recycled by a loop action; intensity is driven entirely
@@ -316,6 +408,7 @@ public final class IslandScene: SKScene {
 
     private func layoutWorld() {
         sky.size = size
+        celestial.position = CGPoint(x: 0, y: 0)
 
         let oceanRect = CGRect(
             x: -size.width / 2,
@@ -412,9 +505,16 @@ public final class IslandScene: SKScene {
             (CGPoint(x: 39, y: 1), CGSize(width: 62, height: 32))
         ]
 
+        // A soft gray-blue belly gives the puffs volume.
+        let belly = SKShapeNode(ellipseOf: CGSize(width: 150, height: 34))
+        belly.fillColor = NSColor(calibratedRed: 0.55, green: 0.62, blue: 0.74, alpha: 0.55)
+        belly.strokeColor = .clear
+        belly.position = CGPoint(x: 2, y: -10)
+        cloud.addChild(belly)
+
         for (position, cloudSize) in pieces {
             let puff = SKShapeNode(ellipseOf: cloudSize)
-            puff.fillColor = NSColor.white.withAlphaComponent(0.84)
+            puff.fillColor = NSColor.white.withAlphaComponent(0.88)
             puff.strokeColor = .clear
             puff.position = position
             cloud.addChild(puff)
@@ -435,24 +535,64 @@ public final class IslandScene: SKScene {
     }
 
     private func buildPalm() {
-        let trunk = SKShapeNode(rectOf: CGSize(width: 20, height: 150), cornerRadius: 9)
-        trunk.fillColor = NSColor(calibratedRed: 0.43, green: 0.25, blue: 0.11, alpha: 1)
-        trunk.strokeColor = .clear
-        trunk.position.y = 72
-        trunk.zRotation = -0.09
-        palm.addChild(trunk)
+        // Trunk: stacked segments leaning into a gentle curve.
+        let trunkLight = NSColor(calibratedRed: 0.49, green: 0.31, blue: 0.15, alpha: 1)
+        let trunkDark = NSColor(calibratedRed: 0.38, green: 0.23, blue: 0.11, alpha: 1)
 
-        palmCrown.position.y = 150
+        for index in 0..<6 {
+            let segment = SKShapeNode(rectOf: CGSize(width: 17 - CGFloat(index), height: 30), cornerRadius: 7)
+            segment.fillColor = index % 2 == 0 ? trunkDark : trunkLight
+            segment.strokeColor = NSColor.black.withAlphaComponent(0.12)
+            segment.lineWidth = 1
+            segment.position.y = 12 + CGFloat(index) * 26
+            // Lean increases toward the crown.
+            segment.position.x = -CGFloat(index) * CGFloat(index) * 1.6
+            segment.zRotation = -0.05 - CGFloat(index) * 0.02
+            palm.addChild(segment)
+        }
+
+        palmCrown.position = CGPoint(x: -40, y: 152)
         palm.addChild(palmCrown)
 
-        for angle in stride(from: 0.0, to: 360.0, by: 60.0) {
-            let leaf = SKShapeNode(ellipseOf: CGSize(width: 115, height: 28))
-            leaf.fillColor = NSColor(calibratedRed: 0.14, green: 0.52, blue: 0.24, alpha: 1)
-            leaf.strokeColor = .clear
-            leaf.zRotation = angle * .pi / 180
-            leaf.position.x = cos(leaf.zRotation) * 35
-            leaf.position.y = sin(leaf.zRotation) * 16
-            palmCrown.addChild(leaf)
+        // Coconuts tucked under the crown.
+        for offset in [CGPoint(x: -10, y: -8), CGPoint(x: 4, y: -12), CGPoint(x: -2, y: -18)] {
+            let coconut = SKShapeNode(circleOfRadius: 7)
+            coconut.fillColor = NSColor(calibratedRed: 0.33, green: 0.20, blue: 0.10, alpha: 1)
+            coconut.strokeColor = .clear
+            coconut.position = offset
+            palmCrown.addChild(coconut)
+        }
+
+        // Fronds: elongated leaves that droop outward, each with a center rib.
+        let angles: [Double] = [15, 55, 100, 145, 195, 250, 300, 345]
+        for (index, angleDegrees) in angles.enumerated() {
+            let angle = angleDegrees * .pi / 180
+            let drooping = sin(angle) < 0
+
+            let frond = SKNode()
+            frond.zRotation = angle
+
+            let length = CGFloat(95 + index % 3 * 14)
+            let blade = SKShapeNode(ellipseOf: CGSize(width: length, height: 20))
+            blade.fillColor = NSColor(
+                calibratedRed: 0.10 + CGFloat(index % 3) * 0.03,
+                green: 0.44 + CGFloat(index % 2) * 0.06,
+                blue: 0.19,
+                alpha: 1
+            )
+            blade.strokeColor = .clear
+            // Shift the blade so it grows outward from the crown.
+            blade.position.x = length / 2 + 14
+            if drooping { blade.position.y -= 6 }
+            frond.addChild(blade)
+
+            let rib = SKShapeNode(rectOf: CGSize(width: length * 0.85, height: 2.5), cornerRadius: 1)
+            rib.fillColor = NSColor(calibratedRed: 0.07, green: 0.30, blue: 0.13, alpha: 1)
+            rib.strokeColor = .clear
+            rib.position.x = length / 2 + 14
+            frond.addChild(rib)
+
+            palmCrown.addChild(frond)
         }
     }
 
@@ -473,12 +613,27 @@ public final class IslandScene: SKScene {
         fireFront.zPosition = 132
         addChild(fireFront)
 
-        let flame = SKShapeNode(ellipseOf: CGSize(width: 28, height: 46))
-        flame.name = "flame"
-        flame.fillColor = NSColor(calibratedRed: 1, green: 0.45, blue: 0.08, alpha: 0.95)
-        flame.strokeColor = .clear
-        flame.position.y = 28
-        fireFront.addChild(flame)
+        // Warm light pooling on the sand beneath the flames.
+        let glow = SKShapeNode(ellipseOf: CGSize(width: 92, height: 26))
+        glow.name = "fireGlow"
+        glow.fillColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.18, alpha: 0.22)
+        glow.strokeColor = .clear
+        glow.position.y = 4
+        fireFront.addChild(glow)
+
+        let outerFlame = SKShapeNode(ellipseOf: CGSize(width: 30, height: 52))
+        outerFlame.name = "flame"
+        outerFlame.fillColor = NSColor(calibratedRed: 0.98, green: 0.42, blue: 0.10, alpha: 0.96)
+        outerFlame.strokeColor = .clear
+        outerFlame.position.y = 30
+        fireFront.addChild(outerFlame)
+
+        let innerFlame = SKShapeNode(ellipseOf: CGSize(width: 16, height: 32))
+        innerFlame.name = "flameInner"
+        innerFlame.fillColor = NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.32, alpha: 0.95)
+        innerFlame.strokeColor = .clear
+        innerFlame.position.y = 24
+        fireFront.addChild(innerFlame)
     }
 
     private func animateWaves() {
@@ -520,6 +675,19 @@ public final class IslandScene: SKScene {
             .scaleY(to: 1.08, duration: 0.27),
             .scaleY(to: 0.92, duration: 0.18)
         ])))
+
+        if let inner = fireFront.childNode(withName: "flameInner") {
+            inner.run(.repeatForever(.sequence([
+                .scaleY(to: 1.14, duration: 0.19),
+                .scaleY(to: 0.82, duration: 0.24),
+                .scaleY(to: 1.05, duration: 0.16)
+            ])))
+        }
+
+        fireFront.childNode(withName: "fireGlow")?.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.55, duration: 0.9),
+            .fadeAlpha(to: 1.0, duration: 1.1)
+        ])))
     }
 
     private func beginSmoke() {
@@ -549,8 +717,9 @@ public final class IslandScene: SKScene {
 
     private func render(_ state: WorldState) {
         currentWind = state.wind
-        sky.color = skyColor(for: state.dayPhase)
+        sky.texture = skyTexture(for: state.dayPhase)
         ocean.fillColor = oceanColor(for: state.dayPhase)
+        positionCelestials(hour: state.simulatedHour)
         stars.run(.fadeAlpha(to: state.dayPhase == .night ? 1 : 0, duration: 1.4))
 
         let daytimeCloudAlpha = 0.35 + state.cloudCover * 0.55
@@ -727,6 +896,102 @@ public final class IslandScene: SKScene {
     /// Converts a normalized island X (0...1) into scene coordinates.
     private func islandX(_ normalizedX: Double) -> CGFloat {
         -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
+    }
+
+    // MARK: - Sky light
+
+    /// Vertical gradient per phase, rendered once into a small texture and
+    /// stretched across the sky.
+    private func skyTexture(for phase: WorldState.DayPhase) -> SKTexture {
+        if let cached = skyTextures[phase] { return cached }
+
+        let palette: (NSColor, NSColor)
+        switch phase {
+        case .dawn: palette = (NSColor(calibratedRed: 0.72, green: 0.44, blue: 0.48, alpha: 1), NSColor(calibratedRed: 0.99, green: 0.72, blue: 0.52, alpha: 1))
+        case .day: palette = (NSColor(calibratedRed: 0.22, green: 0.55, blue: 0.88, alpha: 1), NSColor(calibratedRed: 0.62, green: 0.84, blue: 0.96, alpha: 1))
+        case .sunset: palette = (NSColor(calibratedRed: 0.28, green: 0.24, blue: 0.46, alpha: 1), NSColor(calibratedRed: 0.96, green: 0.52, blue: 0.36, alpha: 1))
+        case .night: palette = (NSColor(calibratedRed: 0.015, green: 0.045, blue: 0.12, alpha: 1), NSColor(calibratedRed: 0.07, green: 0.16, blue: 0.30, alpha: 1))
+        }
+
+        let width = 4
+        let height = 256
+        let context = CGContext(
+            data: nil, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        let colors = [palette.0.cgColor, palette.1.cgColor] as CFArray
+        let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors, locations: [0, 1]
+        )!
+        context.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: CGFloat(height)),
+            end: CGPoint(x: 0, y: 0),
+            options: []
+        )
+        let texture = SKTexture(cgImage: context.makeImage()!)
+        skyTextures[phase] = texture
+        return texture
+    }
+
+    private func buildCelestials() {
+        celestial.zPosition = -38
+        addChild(celestial)
+
+        // Sun: warm disc with a soft halo.
+        let sunHalo = SKShapeNode(circleOfRadius: 44)
+        sunHalo.fillColor = NSColor(calibratedRed: 1.0, green: 0.88, blue: 0.55, alpha: 0.16)
+        sunHalo.strokeColor = .clear
+        sun.addChild(sunHalo)
+
+        let sunDisc = SKShapeNode(circleOfRadius: 24)
+        sunDisc.fillColor = NSColor(calibratedRed: 1.0, green: 0.93, blue: 0.62, alpha: 1)
+        sunDisc.strokeColor = NSColor.white.withAlphaComponent(0.35)
+        sunDisc.lineWidth = 2
+        sun.addChild(sunDisc)
+
+        // Moon: pale disc with a few craters.
+        let moonDisc = SKShapeNode(circleOfRadius: 19)
+        moonDisc.fillColor = NSColor(calibratedRed: 0.86, green: 0.89, blue: 0.95, alpha: 1)
+        moonDisc.strokeColor = NSColor.white.withAlphaComponent(0.25)
+        moonDisc.lineWidth = 1.5
+        moon.addChild(moonDisc)
+
+        for (offset, radius) in [(CGPoint(x: -6, y: 4), 3.4), (CGPoint(x: 5, y: -3), 2.6), (CGPoint(x: 1, y: 8), 1.8)] {
+            let crater = SKShapeNode(circleOfRadius: radius)
+            crater.fillColor = NSColor(calibratedRed: 0.72, green: 0.76, blue: 0.84, alpha: 1)
+            crater.strokeColor = .clear
+            crater.position = offset
+            moon.addChild(crater)
+        }
+
+        celestial.addChild(sun)
+        celestial.addChild(moon)
+    }
+
+    /// The sun rides a shallow arc from dawn to dusk; the moon owns the night.
+    private func positionCelestials(hour: Double) {
+        func arcPosition(_ progress: Double) -> CGPoint {
+            let clamped = max(0, min(1, progress))
+            let x = size.width * (CGFloat(clamped) * 0.9 - 0.45)
+            let height = sin(clamped * .pi)
+            let y = size.height * (0.08 + CGFloat(height) * 0.34) - size.height * 0.02
+            return CGPoint(x: x, y: y)
+        }
+
+        let sunProgress = (hour - 5) / 14
+        let sunVisible = hour >= 5 && hour <= 19
+        sun.position = arcPosition(sunProgress)
+        sun.alpha = sunVisible ? CGFloat(min(1, sin(max(0, min(1, sunProgress)) * .pi) * 2)) : 0
+
+        let nightHour = hour >= 19 ? hour - 19 : hour + 5
+        let moonProgress = nightHour / 10
+        let moonVisible = hour >= 19 || hour < 5
+        moon.position = arcPosition(moonProgress)
+        moon.alpha = moonVisible ? 1 : 0
     }
 
     private func skyColor(for phase: WorldState.DayPhase) -> NSColor {
