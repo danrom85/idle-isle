@@ -5,6 +5,7 @@ import IdleEngine
 /// Observable wrapper so SwiftUI surfaces can share and persist the app's
 /// settings. Saving on every change keeps the JSON file as the single
 /// source of truth.
+@MainActor
 final class AppSettingsModel: ObservableObject {
     static let shared = AppSettingsModel()
 
