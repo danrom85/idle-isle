@@ -2,6 +2,7 @@ import SpriteKit
 import SwiftUI
 
 import IdleEngine
+import IdleWorld
 
 extension Notification.Name {
     static let idleIsleToggleDebugOverlay = Notification.Name("IdleIsleToggleDebugOverlay")

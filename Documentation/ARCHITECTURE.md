@@ -31,16 +31,20 @@ Two targets keep the boundary honest:
 - `WorldRuntime.swift` — owns the authoritative state; exactly one `.driver` advances time while observers only read snapshots. Also owns autosave cadence.
 - `WorldPersistence.swift` — atomic JSON saves with a schema version and corrupt-file backup.
 
-**IdleIsle** (`Sources/IdleIsle`) — SpriteKit + SwiftUI presentation.
+**IdleIsle** (`Sources/IdleIsle`) — SwiftUI host.
 
-- `IslandScene.swift` — the single SKScene. Hosts sky, ocean, memory traces, palm, campfire, ambient events, and the three overlay layers below.
-- `TideLayer.swift` — wet sand, shallow water, and foam that breathe with the tide.
-- `PresenceLayer.swift` — visiting wildlife driven by `PresenceEngine`.
-- `CharacterLifeLayer.swift` — the articulated castaway rig, activity props, and the crab.
 - `ContentView.swift` — one `SpriteView` hosting the composite scene.
 - `IdleIsleApp.swift` — macOS application entry point.
 
-Everything renders through one scene and one view; layers are plain `SKNode`s ordered by z-position.
+**IdleSaver** (`Sources/IdleSaver`) — the macOS screen saver host, compiled by `Tools/build_saver.sh` into `build/Idle Isle.saver` (SwiftPM has no `.saver` product type). `IdleIsleSaverView` embeds the same `IslandScene` in an `SKView`; preview mode skips autosaving so thumbnail rendering never touches the real save.
+
+Everything renders through one scene and one view; layers are plain `SKNode`s ordered by z-position. All presentation lives in the reusable **IdleWorld** library (`Sources/IdleWorld`) so every host shares it:
+
+- `IslandScene.swift` — the single SKScene. Hosts sky, ocean, memory traces, rod rack, palm, campfire, ambient events, and the overlay layers below.
+- `TideLayer.swift` — wet sand, shallow water, and foam that breathe with the tide and shift with the day's light.
+- `PresenceLayer.swift` — visiting wildlife driven by `PresenceEngine`.
+- `CharacterLifeLayer.swift` — the articulated castaway rig, activity props, coconut reactions, and the crab.
+- `SoundSystem.swift` — procedural surf and campfire ambience synthesized at startup; no audio assets ship with the project.
 
 ## Simulation contract
 
@@ -54,4 +58,9 @@ The world state is encoded as JSON and saved atomically to:
 
 `~/Library/Application Support/IdleIsle/world-state.json`
 
-`WorldRuntime` autosaves every few seconds of simulated time and performs a final save when the scene leaves its view. Saves carry a `schemaVersion`; a save that cannot be decoded is moved aside to `world-state.corrupt.json` so a fresh world starts clean without destroying evidence.
+`WorldRuntime` autosaves every few seconds of simulated time, catches up on missed time after pauses or occlusion (capped), and performs a final save when the scene leaves its view. Saves carry a `schemaVersion`; a save that cannot be decoded is moved aside to `world-state.corrupt.json` so a fresh world starts clean without destroying evidence.
+
+## Hosts
+
+- **App**: `swift run` opens a resizable window into the island.
+- **Screen saver**: `Tools/build_saver.sh` compiles `Idle Isle.saver`. Note that if both the app and the saver run simultaneously they each drive their own simulation and the last writer wins the save file.

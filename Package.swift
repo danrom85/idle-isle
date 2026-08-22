@@ -17,9 +17,16 @@ let package = Package(
             name: "IdleEngine",
             path: "Sources/IdleEngine"
         ),
+        // SpriteKit presentation shared by every host: the macOS app today,
+        // the screensaver plug-in built by Tools/build_saver.sh.
+        .target(
+            name: "IdleWorld",
+            dependencies: ["IdleEngine"],
+            path: "Sources/IdleWorld"
+        ),
         .executableTarget(
             name: "IdleIsle",
-            dependencies: ["IdleEngine"],
+            dependencies: ["IdleWorld"],
             path: "Sources/IdleIsle"
         ),
         .testTarget(

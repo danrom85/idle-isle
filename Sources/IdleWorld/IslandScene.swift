@@ -2,7 +2,7 @@ import IdleEngine
 import AppKit
 import SpriteKit
 
-final class IslandScene: SKScene {
+public final class IslandScene: SKScene {
     private let runtime: WorldRuntime
     private var lastUpdateTime: TimeInterval = 0
     private var lastWallTime: TimeInterval = 0
@@ -37,7 +37,7 @@ final class IslandScene: SKScene {
     private let characterLifeLayer: CharacterLifeLayer
     private let soundSystem = SoundSystem()
 
-    init(size: CGSize, runtime: WorldRuntime) {
+    public init(size: CGSize, runtime: WorldRuntime) {
         self.runtime = runtime
         tideLayer = TideLayer(size: size)
         presenceLayer = PresenceLayer(size: size)
@@ -53,7 +53,7 @@ final class IslandScene: SKScene {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func didMove(to view: SKView) {
+    override public func didMove(to view: SKView) {
         view.preferredFramesPerSecond = 30
         view.ignoresSiblingOrder = true
         view.allowsTransparency = false
@@ -61,12 +61,12 @@ final class IslandScene: SKScene {
         soundSystem.start()
     }
 
-    override func willMove(from view: SKView) {
+    override public func willMove(from view: SKView) {
         soundSystem.stop()
         runtime.save()
     }
 
-    override func keyDown(with event: NSEvent) {
+    override public func keyDown(with event: NSEvent) {
         guard event.charactersIgnoringModifiers?.lowercased() == "d" else {
             super.keyDown(with: event)
             return
@@ -74,7 +74,7 @@ final class IslandScene: SKScene {
         debugLabel.isHidden.toggle()
     }
 
-    override func update(_ currentTime: TimeInterval) {
+    override public func update(_ currentTime: TimeInterval) {
         let wallTime = Date().timeIntervalSinceReferenceDate
         let wallDelta = lastWallTime == 0 ? 0 : wallTime - lastWallTime
         lastWallTime = wallTime
@@ -98,7 +98,7 @@ final class IslandScene: SKScene {
         soundSystem.update(world: state)
     }
 
-    override func didChangeSize(_ oldSize: CGSize) {
+    override public func didChangeSize(_ oldSize: CGSize) {
         layoutWorld()
     }
 

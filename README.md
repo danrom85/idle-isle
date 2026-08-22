@@ -33,6 +33,17 @@ Or open `Package.swift` in Xcode and press Cmd+R.
 swift test
 ```
 
+## Screen saver
+
+Build and install the island as a macOS screen saver:
+
+```sh
+./Tools/build_saver.sh
+open "build/Idle Isle.saver"
+```
+
+The saver shares the same world save as the app, so your castaway's memories carry over.
+
 ## Documentation
 
 - [Vision](Documentation/VISION.md) — what Idle Isle is and is not.
