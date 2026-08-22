@@ -21,6 +21,7 @@ final class IslandScene: SKScene {
     private let fishingWear = SKShapeNode()
     private let campfireWear = SKShapeNode()
     private let palmWear = SKShapeNode()
+    private let rodRack = SKNode()
 
     private let palm = SKNode()
     private let palmCrown = SKNode()
@@ -145,6 +146,9 @@ final class IslandScene: SKScene {
         animateClouds()
         beginSmoke()
 
+        rodRack.zPosition = 5
+        addChild(rodRack)
+
         // Layer order mirrors the previous overlay stack: shore effects,
         // then visitors, then the articulated castaway on top.
         tideLayer.zPosition = 110
@@ -165,6 +169,38 @@ final class IslandScene: SKScene {
             node.fillColor = NSColor(calibratedRed: 0.60, green: 0.42, blue: 0.22, alpha: 1)
             node.strokeColor = .clear
             memoryLayer.addChild(node)
+        }
+
+        buildRodRack()
+    }
+
+    /// A rack of hand-cut fishing rods appears as fishing becomes habit.
+    private func buildRodRack() {
+        rodRack.isHidden = true
+
+        let wood = NSColor(calibratedRed: 0.36, green: 0.21, blue: 0.09, alpha: 1)
+
+        let post = SKShapeNode(rectOf: CGSize(width: 7, height: 44), cornerRadius: 3)
+        post.fillColor = wood
+        post.strokeColor = .clear
+        post.position.y = 22
+        rodRack.addChild(post)
+
+        let bar = SKShapeNode(rectOf: CGSize(width: 46, height: 6), cornerRadius: 3)
+        bar.fillColor = wood
+        bar.strokeColor = .clear
+        bar.position.y = 38
+        rodRack.addChild(bar)
+
+        for index in 0..<3 {
+            let rod = SKShapeNode(rectOf: CGSize(width: 4, height: 52), cornerRadius: 2)
+            rod.fillColor = NSColor(calibratedRed: 0.48, green: 0.30, blue: 0.13, alpha: 1)
+            rod.strokeColor = .clear
+            rod.position = CGPoint(x: CGFloat(index * 13 - 13), y: 30)
+            rod.zRotation = CGFloat(index - 1) * 0.10 + 0.06
+            rod.name = "rack-rod-\(index)"
+            rod.isHidden = true
+            rodRack.addChild(rod)
         }
     }
 
@@ -195,6 +231,7 @@ final class IslandScene: SKScene {
             y: -size.height * 0.12
         )
         smokeLayer.position = campfire.position
+        rodRack.position = CGPoint(x: islandX(0.56), y: -size.height * 0.10)
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
 
         let fishingX = islandX(SimulationEngine.fishingSpotX)
@@ -413,11 +450,37 @@ final class IslandScene: SKScene {
         campfireWear.alpha = CGFloat(state.memory.campfireWear * 0.24)
         palmWear.alpha = CGFloat(state.memory.palmShadeWear * 0.22)
 
+        renderRodRack(trips: state.memory.fishingTrips)
+
         debugLabel.text = "Idle Isle • \(state.debugSummary) • Fish \(state.memory.fishingTrips) • Sleeps \(state.memory.nightsSlept)"
 
         if state.ambientEvent != lastAmbientEvent {
             lastAmbientEvent = state.ambientEvent
             playAmbientEvent(state.ambientEvent, memory: state.memory)
+        }
+    }
+
+    /// Rods accumulate slowly: one after five trips, then every seven more.
+    private func renderRodRack(trips: Int) {
+        guard trips >= 5 else {
+            rodRack.isHidden = true
+            return
+        }
+
+        rodRack.isHidden = false
+        let targetAlpha: CGFloat = 0.85
+        rodRack.alpha = min(targetAlpha, rodRack.alpha + 0.01)
+
+        for (index, rod) in rodRack.children.enumerated() where rod.name?.hasPrefix("rack-rod-") == true {
+            let threshold = 5 + index * 7
+            if rod.isHidden && trips >= threshold {
+                rod.isHidden = false
+                rod.setScale(0.6)
+                rod.run(.group([
+                    .scale(to: 1, duration: 0.8),
+                    .fadeAlpha(to: 1, duration: 0.8)
+                ]))
+            }
         }
     }
 
