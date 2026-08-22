@@ -2,10 +2,9 @@ import IdleEngine
 import AppKit
 import SpriteKit
 
-final class CharacterLifeScene: SKScene {
-    private let runtime: WorldRuntime
+final class CharacterLifeLayer: SKNode {
+    private let size: CGSize
     private let crabEngine = CrabEngine()
-    private var lastUpdateTime: TimeInterval = 0
 
     private let activityLayer = SKNode()
     private let castawayRig = SKNode()
@@ -30,12 +29,10 @@ final class CharacterLifeScene: SKScene {
     private let restingMat = SKShapeNode(ellipseOf: CGSize(width: 66, height: 18))
     private let restingZ = SKLabelNode(text: "z")
 
-    init(size: CGSize, runtime: WorldRuntime) {
-        self.runtime = runtime
-        super.init(size: size)
+    init(size: CGSize) {
+        self.size = size
+        super.init()
 
-        anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        backgroundColor = .clear
         buildActivityProps()
         buildCastawayRig()
         buildCrab()
@@ -45,16 +42,7 @@ final class CharacterLifeScene: SKScene {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func didMove(to view: SKView) {
-        view.preferredFramesPerSecond = 30
-        view.allowsTransparency = true
-    }
-
-    override func update(_ currentTime: TimeInterval) {
-        let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-
-        let world = runtime.state
+    func update(by delta: TimeInterval, world: WorldState) {
         let crabState = crabEngine.advance(by: delta, world: world)
         renderCastaway(world)
         renderWorldActivity(world)

@@ -1,43 +1,31 @@
-import IdleEngine
 import AppKit
 import SpriteKit
 
-final class PresenceScene: SKScene {
-    private let runtime: WorldRuntime
+import IdleEngine
+
+/// Visiting-wildlife presentation as a layer node inside the single world scene.
+final class PresenceLayer: SKNode {
+    private let size: CGSize
     private let presenceEngine = PresenceEngine()
-    private var lastUpdateTime: TimeInterval = 0
     private var renderedVisitor: PresenceState.Visitor = .none
     private let visitorLayer = SKNode()
 
-    init(size: CGSize, runtime: WorldRuntime) {
-        self.runtime = runtime
-        super.init(size: size)
-        anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        backgroundColor = .clear
+    init(size: CGSize) {
+        self.size = size
+        super.init()
+
         visitorLayer.zPosition = 50
         addChild(visitorLayer)
+        render(presenceEngine.state)
     }
 
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func didMove(to view: SKView) {
-        view.preferredFramesPerSecond = 30
-        view.allowsTransparency = true
-    }
-
-    override func update(_ currentTime: TimeInterval) {
-        let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-
-        let world = runtime.state
+    func update(by delta: TimeInterval, world: WorldState) {
         let presence = presenceEngine.advance(by: delta, world: world)
         render(presence)
-    }
-
-    override func didChangeSize(_ oldSize: CGSize) {
-        render(presenceEngine.state)
     }
 
     private func render(_ presence: PresenceState) {

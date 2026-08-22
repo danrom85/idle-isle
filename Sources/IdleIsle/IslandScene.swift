@@ -28,8 +28,17 @@ final class IslandScene: SKScene {
     private let smokeLayer = SKNode()
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
+    // Overlay presentation layers. One scene hosts everything so SpriteKit
+    // renders through a single view and pipeline.
+    private let tideLayer: TideLayer
+    private let presenceLayer: PresenceLayer
+    private let characterLifeLayer: CharacterLifeLayer
+
     init(size: CGSize, runtime: WorldRuntime) {
         self.runtime = runtime
+        tideLayer = TideLayer(size: size)
+        presenceLayer = PresenceLayer(size: size)
+        characterLifeLayer = CharacterLifeLayer(size: size)
         super.init(size: size)
 
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
@@ -44,6 +53,7 @@ final class IslandScene: SKScene {
     override func didMove(to view: SKView) {
         view.preferredFramesPerSecond = 30
         view.ignoresSiblingOrder = true
+        view.allowsTransparency = false
         view.window?.makeFirstResponder(view)
     }
 
@@ -65,6 +75,9 @@ final class IslandScene: SKScene {
 
         let state = runtime.advance(by: delta)
         render(state)
+        tideLayer.update(world: state)
+        presenceLayer.update(by: delta, world: state)
+        characterLifeLayer.update(by: delta, world: state)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -131,6 +144,15 @@ final class IslandScene: SKScene {
         animateFire()
         animateClouds()
         beginSmoke()
+
+        // Layer order mirrors the previous overlay stack: shore effects,
+        // then visitors, then the articulated castaway on top.
+        tideLayer.zPosition = 110
+        presenceLayer.zPosition = 120
+        characterLifeLayer.zPosition = 130
+        addChild(tideLayer)
+        addChild(presenceLayer)
+        addChild(characterLifeLayer)
     }
 
     private func buildMemoryTraces() {

@@ -1,20 +1,24 @@
-import IdleEngine
 import AppKit
 import SpriteKit
 
-final class TideScene: SKScene {
-    private let runtime: WorldRuntime
+import IdleEngine
+
+/// Tide presentation as a layer node inside the single world scene.
+///
+/// The scene runs at a fixed design size (aspect-fill scaling keeps it
+/// constant), so shoreline layout happens once at construction.
+final class TideLayer: SKNode {
+    private let size: CGSize
 
     private let wetSand = SKShapeNode()
     private let shallowWater = SKShapeNode()
     private let foam = SKShapeNode()
     private let foamGlints = SKNode()
 
-    init(size: CGSize, runtime: WorldRuntime) {
-        self.runtime = runtime
-        super.init(size: size)
-        anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        backgroundColor = .clear
+    init(size: CGSize) {
+        self.size = size
+        super.init()
+
         buildShoreline()
     }
 
@@ -22,17 +26,23 @@ final class TideScene: SKScene {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func didMove(to view: SKView) {
-        view.preferredFramesPerSecond = 30
-        view.allowsTransparency = true
-    }
+    func update(world state: WorldState) {
+        let tide = CGFloat(state.tideLevel)
+        let rise = (tide - 0.5) * size.height * 0.052
 
-    override func update(_ currentTime: TimeInterval) {
-        render(runtime.state)
-    }
+        wetSand.alpha = 0.30 + (1 - tide) * 0.34
+        wetSand.yScale = 0.72 + (1 - tide) * 0.54
+        wetSand.position.y = rise * 0.18
 
-    override func didChangeSize(_ oldSize: CGSize) {
-        layoutShoreline()
+        shallowWater.alpha = 0.10 + tide * 0.34
+        shallowWater.yScale = 0.66 + tide * 0.62
+        shallowWater.position.y = rise * 0.52
+
+        foam.alpha = 0.28 + tide * 0.52
+        foam.position.y = rise
+        foamGlints.alpha = 0.18 + tide * 0.48
+        foamGlints.position.y = -size.height * 0.19 + rise
+        foamGlints.speed = 0.65 + tide * 0.75
     }
 
     private func buildShoreline() {
@@ -98,24 +108,5 @@ final class TideScene: SKScene {
         )
         foam.path = foamPath
         foamGlints.position = CGPoint(x: 0, y: -size.height * 0.19)
-    }
-
-    private func render(_ state: WorldState) {
-        let tide = CGFloat(state.tideLevel)
-        let rise = (tide - 0.5) * size.height * 0.052
-
-        wetSand.alpha = 0.30 + (1 - tide) * 0.34
-        wetSand.yScale = 0.72 + (1 - tide) * 0.54
-        wetSand.position.y = rise * 0.18
-
-        shallowWater.alpha = 0.10 + tide * 0.34
-        shallowWater.yScale = 0.66 + tide * 0.62
-        shallowWater.position.y = rise * 0.52
-
-        foam.alpha = 0.28 + tide * 0.52
-        foam.position.y = rise
-        foamGlints.alpha = 0.18 + tide * 0.48
-        foamGlints.position.y = -size.height * 0.19 + rise
-        foamGlints.speed = 0.65 + tide * 0.75
     }
 }
