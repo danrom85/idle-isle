@@ -5,6 +5,8 @@ import SpriteKit
 final class CharacterLifeLayer: SKNode {
     private let size: CGSize
     private let crabEngine = CrabEngine()
+    private var lastAmbientEvent: WorldState.AmbientEvent = .none
+    private var duckOffset: CGFloat = 0
 
     private let activityLayer = SKNode()
     private let castawayRig = SKNode()
@@ -47,6 +49,36 @@ final class CharacterLifeLayer: SKNode {
         renderCastaway(world)
         renderWorldActivity(world)
         renderCrab(crabState, world: world)
+        reactToAmbientEvent(world)
+
+        // Applied after posing so the duck survives resetPose().
+        if duckOffset != 0 {
+            headGroup.position.y += duckOffset
+            let decay = exp(-delta * 7)
+            duckOffset *= decay
+            if abs(duckOffset) < 0.05 { duckOffset = 0 }
+        }
+    }
+
+    /// Familiar castaways barely react to falling coconuts; newcomers flinch.
+    private func reactToAmbientEvent(_ world: WorldState) {
+        guard world.ambientEvent != lastAmbientEvent else { return }
+        let previousEvent = lastAmbientEvent
+        lastAmbientEvent = world.ambientEvent
+
+        guard world.ambientEvent == .coconutFalls,
+              previousEvent != .coconutFalls,
+              world.memory.coconutFamiliarity < 0.75 else { return }
+
+        duckOffset = -2.5
+
+        let reaction = 0.35 * (1 - world.memory.coconutFamiliarity)
+        hat.removeAction(forKey: "coconutFlinch")
+        hat.run(.sequence([
+            .rotate(byAngle: reaction, duration: 0.09),
+            .rotate(byAngle: -reaction * 2, duration: 0.12),
+            .rotate(toAngle: 0, duration: 0.14)
+        ]), withKey: "coconutFlinch")
     }
 
     private func buildActivityProps() {
