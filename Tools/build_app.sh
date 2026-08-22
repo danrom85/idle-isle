@@ -19,6 +19,12 @@ mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources"
 cp Tools/App-Info.plist "${CONTENTS}/Info.plist"
 cp .build/release/IdleIsle "${CONTENTS}/MacOS/IdleIsle"
 
+# SwiftPM packages bundled resources as a separate .bundle beside the
+# executable; bring it along so hand-authored art loads at runtime.
+if [ -d .build/release/IdleIsle_IdleWorld.bundle ]; then
+    cp -R .build/release/IdleIsle_IdleWorld.bundle "${CONTENTS}/Resources/"
+fi
+
 # Ad-hoc signature so Gatekeeper accepts a locally built copy.
 codesign --force -s - "${CONTENTS}/MacOS/IdleIsle"
 

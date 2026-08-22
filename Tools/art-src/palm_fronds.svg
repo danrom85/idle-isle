@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 280" width="520" height="280">
+  <defs>
+    <linearGradient id="leafA" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0" stop-color="#2E9E44"/>
+      <stop offset="1" stop-color="#17602A"/>
+    </linearGradient>
+    <linearGradient id="leafB" x1="0" y1="0" x2="1" y2="-0.2">
+      <stop offset="0" stop-color="#35AC4C"/>
+      <stop offset="1" stop-color="#1B6E30"/>
+    </linearGradient>
+    <radialGradient id="nut" cx="0.35" cy="0.35" r="0.9">
+      <stop offset="0" stop-color="#74481F"/>
+      <stop offset="1" stop-color="#4A2A12"/>
+    </radialGradient>
+  </defs>
+
+  <!-- back fronds (darker, behind) -->
+  <g fill="#145420">
+    <path d="M260,150 C250,84 254,38 264,4 C272,48 270,102 266,150 Z"/>
+    <path d="M262,152 C226,100 196,62 158,34 C206,66 238,108 266,154 Z"/>
+    <path d="M258,152 C294,102 324,64 362,36 C314,68 282,110 258,154 Z"/>
+  </g>
+
+  <!-- front fronds (brighter, ribbed) -->
+  <g>
+    <!-- right, slight rise -->
+    <path d="M260,148 C330,124 402,126 452,150 C396,160 320,162 260,148 Z" fill="url(#leafA)"/>
+    <path d="M264,147 C330,133 398,136 444,151" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- right, drooping -->
+    <path d="M260,152 C332,152 404,172 446,210 C382,190 314,168 260,152 Z" fill="url(#leafB)"/>
+    <path d="M266,155 C330,161 394,178 436,204" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- left, slight rise -->
+    <path d="M260,148 C190,124 118,126 68,150 C124,160 200,162 260,148 Z" fill="url(#leafB)"/>
+    <path d="M256,147 C190,133 122,136 76,151" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- left, drooping -->
+    <path d="M260,152 C188,152 116,172 74,210 C138,190 206,168 260,152 Z" fill="url(#leafA)"/>
+    <path d="M254,155 C190,161 126,178 84,204" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- upper left -->
+    <path d="M258,146 C230,92 212,52 200,10 C232,56 250,104 264,148 Z" fill="url(#leafA)"/>
+    <path d="M256,140 C238,98 224,58 208,20" stroke="#0F4A1E" stroke-width="2.6" fill="none" opacity="0.65" stroke-linecap="round"/>
+
+    <!-- upper right -->
+    <path d="M262,146 C290,92 308,52 320,10 C288,56 270,104 256,148 Z" fill="url(#leafB)"/>
+    <path d="M264,140 C282,98 296,58 312,20" stroke="#0F4A1E" stroke-width="2.6" fill="none" opacity="0.65" stroke-linecap="round"/>
+
+    <!-- straight up -->
+    <path d="M258,144 C254,80 256,40 260,4 C266,44 264,96 262,144 Z" fill="url(#leafA)"/>
+    <path d="M260,140 C259,96 259,60 260,14" stroke="#0F4A1E" stroke-width="2.4" fill="none" opacity="0.65" stroke-linecap="round"/>
+  </g>
+
+  <!-- coconuts tucked under the crown -->
+  <g>
+    <circle cx="243" cy="164" r="16" fill="url(#nut)"/>
+    <circle cx="272" cy="161" r="15" fill="url(#nut)"/>
+    <circle cx="257" cy="177" r="14" fill="url(#nut)"/>
+    <ellipse cx="238" cy="157" rx="5" ry="3.4" fill="#8A5A2C" opacity="0.75" transform="rotate(-24 238 157)"/>
+    <ellipse cx="267" cy="154" rx="4.6" ry="3.1" fill="#8A5A2C" opacity="0.75" transform="rotate(-18 267 154)"/>
+  </g>
+</svg>

@@ -22,7 +22,10 @@ let package = Package(
         .target(
             name: "IdleWorld",
             dependencies: ["IdleEngine"],
-            path: "Sources/IdleWorld"
+            path: "Sources/IdleWorld",
+            resources: [
+                .process("Art")
+            ]
         ),
         .executableTarget(
             name: "IdleIsle",

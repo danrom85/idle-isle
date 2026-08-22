@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html><head><style>
+  body { margin: 0; background: #FF00FF; }
+  .sheet { display: inline-block; background: #FF00FF; line-height: 0; }
+</style></head><body>
+  <div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 280" width="520" height="280">
+  <defs>
+    <linearGradient id="leafA" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0" stop-color="#2E9E44"/>
+      <stop offset="1" stop-color="#17602A"/>
+    </linearGradient>
+    <linearGradient id="leafB" x1="0" y1="0" x2="1" y2="-0.2">
+      <stop offset="0" stop-color="#35AC4C"/>
+      <stop offset="1" stop-color="#1B6E30"/>
+    </linearGradient>
+    <radialGradient id="nut" cx="0.35" cy="0.35" r="0.9">
+      <stop offset="0" stop-color="#74481F"/>
+      <stop offset="1" stop-color="#4A2A12"/>
+    </radialGradient>
+  </defs>
+
+  <!-- back fronds (darker, behind) -->
+  <g fill="#145420">
+    <path d="M260,150 C250,84 254,38 264,4 C272,48 270,102 266,150 Z"/>
+    <path d="M262,152 C226,100 196,62 158,34 C206,66 238,108 266,154 Z"/>
+    <path d="M258,152 C294,102 324,64 362,36 C314,68 282,110 258,154 Z"/>
+  </g>
+
+  <!-- front fronds (brighter, ribbed) -->
+  <g>
+    <!-- right, slight rise -->
+    <path d="M260,148 C330,124 402,126 452,150 C396,160 320,162 260,148 Z" fill="url(#leafA)"/>
+    <path d="M264,147 C330,133 398,136 444,151" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- right, drooping -->
+    <path d="M260,152 C332,152 404,172 446,210 C382,190 314,168 260,152 Z" fill="url(#leafB)"/>
+    <path d="M266,155 C330,161 394,178 436,204" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- left, slight rise -->
+    <path d="M260,148 C190,124 118,126 68,150 C124,160 200,162 260,148 Z" fill="url(#leafB)"/>
+    <path d="M256,147 C190,133 122,136 76,151" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- left, drooping -->
+    <path d="M260,152 C188,152 116,172 74,210 C138,190 206,168 260,152 Z" fill="url(#leafA)"/>
+    <path d="M254,155 C190,161 126,178 84,204" stroke="#0F4A1E" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- upper left -->
+    <path d="M258,146 C230,92 212,52 200,10 C232,56 250,104 264,148 Z" fill="url(#leafA)"/>
+    <path d="M256,140 C238,98 224,58 208,20" stroke="#0F4A1E" stroke-width="2.6" fill="none" opacity="0.65" stroke-linecap="round"/>
+
+    <!-- upper right -->
+    <path d="M262,146 C290,92 308,52 320,10 C288,56 270,104 256,148 Z" fill="url(#leafB)"/>
+    <path d="M264,140 C282,98 296,58 312,20" stroke="#0F4A1E" stroke-width="2.6" fill="none" opacity="0.65" stroke-linecap="round"/>
+
+    <!-- straight up -->
+    <path d="M258,144 C254,80 256,40 260,4 C266,44 264,96 262,144 Z" fill="url(#leafA)"/>
+    <path d="M260,140 C259,96 259,60 260,14" stroke="#0F4A1E" stroke-width="2.4" fill="none" opacity="0.65" stroke-linecap="round"/>
+  </g>
+
+  <!-- coconuts tucked under the crown -->
+  <g>
+    <circle cx="243" cy="164" r="16" fill="url(#nut)"/>
+    <circle cx="272" cy="161" r="15" fill="url(#nut)"/>
+    <circle cx="257" cy="177" r="14" fill="url(#nut)"/>
+    <ellipse cx="238" cy="157" rx="5" ry="3.4" fill="#8A5A2C" opacity="0.75" transform="rotate(-24 238 157)"/>
+    <ellipse cx="267" cy="154" rx="4.6" ry="3.1" fill="#8A5A2C" opacity="0.75" transform="rotate(-18 267 154)"/>
+  </g>
+</svg>
+</div><div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 320" width="140" height="320">
+  <defs>
+    <linearGradient id="bark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7A4A26"/>
+      <stop offset="0.55" stop-color="#5E3619"/>
+      <stop offset="1" stop-color="#42250F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- curved trunk: narrow at the crown, flared at the base -->
+  <path d="M56,2
+           C50,90 52,180 66,268
+           C70,292 74,308 76,318
+           L118,318
+           C114,300 108,280 102,250
+           C92,196 86,100 88,4
+           Z"
+        fill="url(#bark)"/>
+
+  <!-- bark ring shadows -->
+  <g stroke="#3A2110" stroke-width="3.4" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M57,34   Q72,42  87,32"/>
+    <path d="M56,72   Q71,80  87,70"/>
+    <path d="M56,110  Q71,118 88,108"/>
+    <path d="M58,148  Q73,156 90,146"/>
+    <path d="M60,186  Q75,194 92,184"/>
+    <path d="M63,224  Q78,232 96,222"/>
+    <path d="M67,262  Q82,270 101,260"/>
+    <path d="M71,294  Q85,301 105,292"/>
+  </g>
+
+  <!-- soft left-edge highlight -->
+  <path d="M59,10 C54,95 56,185 68,262" stroke="#8F5C31" stroke-width="4" fill="none" opacity="0.5" stroke-linecap="round"/>
+</svg>
+</div>
+</body></html>

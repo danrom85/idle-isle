@@ -204,6 +204,7 @@ public final class IslandScene: SKScene {
         rainLayer.zPosition = 135
         addChild(rainLayer)
 
+
         fireflyLayer.zPosition = 100
         addChild(fireflyLayer)
 
@@ -615,6 +616,37 @@ public final class IslandScene: SKScene {
     }
 
     private func buildPalm() {
+        if let trunk = ArtAssets.texture("palm_trunk"),
+           let fronds = ArtAssets.texture("palm_fronds") {
+            buildPalmFromArt(trunk: trunk, fronds: fronds)
+        } else {
+            buildVectorPalm()
+        }
+    }
+
+    /// The hand-authored palm: painted trunk below, swaying frond sprite
+    /// above. Displayed at half the baked resolution for crispness.
+    private func buildPalmFromArt(trunk: SKTexture, fronds: SKTexture) {
+        let trunkHeight: CGFloat = 178
+        let trunkWidth = trunkHeight * trunk.size().width / trunk.size().height
+
+        let trunkSprite = SKSpriteNode(texture: trunk)
+        trunkSprite.size = CGSize(width: trunkWidth, height: trunkHeight)
+        trunkSprite.position = CGPoint(x: -42, y: trunkHeight / 2)
+        trunkSprite.zPosition = 6
+        palm.addChild(trunkSprite)
+
+        let frondHeight: CGFloat = 116
+        let frondWidth = frondHeight * fronds.size().width / fronds.size().height
+
+        palmCrown.position = CGPoint(x: -42, y: trunkHeight + 4)
+        palm.addChild(palmCrown)
+        let frondSprite = SKSpriteNode(texture: fronds)
+        frondSprite.size = CGSize(width: frondWidth, height: frondHeight)
+        palmCrown.addChild(frondSprite)
+    }
+
+    private func buildVectorPalm() {
         // Trunk: stacked segments leaning into a gentle curve.
         let trunkLight = NSColor(calibratedRed: 0.49, green: 0.31, blue: 0.15, alpha: 1)
         let trunkDark = NSColor(calibratedRed: 0.38, green: 0.23, blue: 0.11, alpha: 1)

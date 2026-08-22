@@ -15,6 +15,7 @@ SAVER_NAME="Idle Isle.saver"
 CONTENTS="build/${SAVER_NAME}/Contents"
 
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources/en.lproj"
+cp -R Sources/IdleWorld/Art "${CONTENTS}/Resources/Art"
 cp Sources/IdleSaver/Info.plist "${CONTENTS}/Info.plist"
 printf '/* Localized versions of Info.plist keys */\n' > "${CONTENTS}/Resources/en.lproj/InfoPlist.strings"
 
@@ -27,6 +28,18 @@ TMP_SRC="$(mktemp -d)"
 trap 'rm -rf "$TMP_SRC"' EXIT
 cp Sources/IdleEngine/*.swift Sources/IdleWorld/*.swift Sources/IdleSaver/*.swift "$TMP_SRC/"
 sed -i '' -e '/^import IdleEngine$/d' -e '/^import IdleWorld$/d' "$TMP_SRC"/*.swift
+
+# SPM generates `Bundle.module` for targets with resources; the bare swiftc
+# compile has no such accessor, so provide one pointing at the .saver bundle.
+cat > "$TMP_SRC/BundleModuleShim.swift" <<'SHIM'
+import Foundation
+
+private final class SaverBundleMarker {}
+
+extension Bundle {
+    static var module: Bundle { Bundle(for: SaverBundleMarker.self) }
+}
+SHIM
 
 xcrun swiftc \
     -O \
