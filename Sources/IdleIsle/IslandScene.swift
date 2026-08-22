@@ -35,6 +35,7 @@ final class IslandScene: SKScene {
     private let tideLayer: TideLayer
     private let presenceLayer: PresenceLayer
     private let characterLifeLayer: CharacterLifeLayer
+    private let soundSystem = SoundSystem()
 
     init(size: CGSize, runtime: WorldRuntime) {
         self.runtime = runtime
@@ -57,9 +58,11 @@ final class IslandScene: SKScene {
         view.ignoresSiblingOrder = true
         view.allowsTransparency = false
         view.window?.makeFirstResponder(view)
+        soundSystem.start()
     }
 
     override func willMove(from view: SKView) {
+        soundSystem.stop()
         runtime.save()
     }
 
@@ -92,6 +95,7 @@ final class IslandScene: SKScene {
         tideLayer.update(world: state)
         presenceLayer.update(by: min(delta, 0.1), world: state)
         characterLifeLayer.update(by: min(delta, 0.1), world: state)
+        soundSystem.update(world: state)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

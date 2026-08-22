@@ -1,13 +1,13 @@
 import Foundation
 
-struct SeededGenerator: RandomNumberGenerator, Sendable {
+public struct SeededGenerator: RandomNumberGenerator, Sendable {
     private var state: UInt64
 
     public init(seed: UInt64) {
         state = seed == 0 ? 0x9E3779B97F4A7C15 : seed
     }
 
-    mutating func next() -> UInt64 {
+    public mutating func next() -> UInt64 {
         state &+= 0x9E3779B97F4A7C15
         var value = state
         value = (value ^ (value >> 30)) &* 0xBF58476D1CE4E5B9
@@ -15,7 +15,7 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
         return value ^ (value >> 31)
     }
 
-    mutating func unitInterval() -> Double {
+    public mutating func unitInterval() -> Double {
         Double(next() >> 11) / Double(1 << 53)
     }
 }
