@@ -137,6 +137,11 @@ public struct WorldState: Codable, Equatable, Sendable {
     public var activityTimeRemaining: TimeInterval = 2
     public var nextAmbientEventIn: TimeInterval = 5
 
+    /// Save format version. Absent in saves from before versioning existed;
+    /// persistence upgrades it to `currentSchemaVersion` after a clean load.
+    public static let currentSchemaVersion = 1
+    public var schemaVersion: Int?
+
     // Optional preserves compatibility with world saves created before fish existed.
     public var fish: Fish?
     public var memory = Memory()

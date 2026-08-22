@@ -5,7 +5,8 @@ final class WorldRuntimeTests: XCTestCase {
     func testDriverAdvancesWorldTime() {
         let runtime = WorldRuntime(
             role: .driver,
-            initialState: WorldState()
+            initialState: WorldState(),
+            autosaveInterval: nil
         )
 
         let initialElapsedTime = runtime.state.elapsedTime
@@ -17,13 +18,16 @@ final class WorldRuntimeTests: XCTestCase {
 
     func testObserverCannotAdvanceWorldTime() {
         var initialState = WorldState()
+        initialState.schemaVersion = WorldState.currentSchemaVersion
         initialState.elapsedTime = 42
         initialState.characterX = 0.61
         initialState.activity = .fishing
 
         let runtime = WorldRuntime(
             role: .observer,
-            initialState: initialState
+            persistence: WorldPersistence(fileURL: Self.temporaryFileURL()),
+            initialState: initialState,
+            autosaveInterval: nil
         )
 
         let snapshot = runtime.advance(by: 10)
@@ -33,5 +37,34 @@ final class WorldRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.state.elapsedTime, 42)
         XCTAssertEqual(runtime.state.characterX, 0.61)
         XCTAssertEqual(runtime.state.activity, .fishing)
+    }
+
+    func testDriverAutosavesAfterReachingInterval() throws {
+        let fileURL = Self.temporaryFileURL()
+        let persistence = WorldPersistence(fileURL: fileURL)
+        let runtime = WorldRuntime(
+            role: .driver,
+            persistence: persistence,
+            initialState: WorldState(),
+            autosaveInterval: 5
+        )
+
+        XCTAssertNil(persistence.load())
+
+        _ = runtime.advance(by: 2.5)
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        _ = runtime.advance(by: 3)
+
+        let saved = try XCTUnwrap(persistence.load())
+        XCTAssertEqual(saved, runtime.state)
+    }
+
+    private static func temporaryFileURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("IdleIsleRuntimeTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("world-state.json")
     }
 }

@@ -5,7 +5,6 @@ import SpriteKit
 final class IslandScene: SKScene {
     private let runtime: WorldRuntime
     private var lastUpdateTime: TimeInterval = 0
-    private var saveCountdown: TimeInterval = 5
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
     private var currentWind: Double = 0.22
 
@@ -49,7 +48,7 @@ final class IslandScene: SKScene {
     }
 
     override func willMove(from view: SKView) {
-        try? runtime.save()
+        runtime.save()
     }
 
     override func keyDown(with event: NSEvent) {
@@ -66,12 +65,6 @@ final class IslandScene: SKScene {
 
         let state = runtime.advance(by: delta)
         render(state)
-
-        saveCountdown -= delta
-        if saveCountdown <= 0 {
-            try? runtime.save()
-            saveCountdown = 5
-        }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

@@ -154,6 +154,7 @@ final class SimulationEngineTests: XCTestCase {
         let persistence = WorldPersistence(fileURL: fileURL)
 
         var state = WorldState()
+        state.schemaVersion = WorldState.currentSchemaVersion
         state.memory.fishingTrips = 7
         state.memory.fishCaught = 3
         state.memory.mealsEaten = 2
