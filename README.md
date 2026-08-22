@@ -13,3 +13,33 @@ No scores.
 No gameplay.
 
 Just a tiny world that never stops living.
+
+## Building
+
+Requires macOS 14+ and Swift 6 (Xcode 15.4 or newer).
+
+```sh
+git clone https://github.com/danrom85/idle-isle.git
+cd idle-isle
+swift build
+swift run
+```
+
+Or open `Package.swift` in Xcode and press Cmd+R.
+
+## Testing
+
+```sh
+swift test
+```
+
+## Documentation
+
+- [Vision](Documentation/VISION.md) — what Idle Isle is and is not.
+- [Architecture](Documentation/ARCHITECTURE.md) — engine/presentation boundary and package layout.
+- [Memory](Documentation/MEMORY.md) — how the island remembers.
+- [First Breath](Documentation/FIRST_BREATH.md) — the first playable milestone.
+
+## License
+
+[Apache 2.0](LICENSE)

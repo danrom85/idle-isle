@@ -4,7 +4,7 @@ Idle Isle is a living-world engine with multiple possible presentation surfaces.
 
 ## Core boundary
 
-The simulation must not depend on SpriteKit, SwiftUI, AppKit, screen size, frame rate, or final art assets.
+The simulation must not depend on SpriteKit, SwiftUI, AppKit, screen size, frame rate, or final art assets. The Swift package enforces this: `Sources/IdleEngine` compiles against Foundation only, and any scene import that leaks in fails the build.
 
 ```text
 Input time
@@ -18,62 +18,40 @@ Renderer
 macOS app / screen saver / future hosts
 ```
 
-## Current prototype
+## Package layout
 
-The First Breath branch intentionally keeps the files in one executable target to minimize setup friction. The boundaries are still conceptual and should remain visible:
+Two targets keep the boundary honest:
+
+**IdleEngine** (`Sources/IdleEngine`) — Foundation only.
 
 - `WorldState.swift` — serializable facts about the world.
 - `SimulationEngine.swift` — deterministic state transitions and decisions.
-- `IslandScene.swift` — SpriteKit representation of the current state.
-- `ContentView.swift` — SwiftUI host for the SpriteKit scene.
+- `CrabSystem.swift` — the shore crab's own small behavior loop.
+- `PresenceSystem.swift` — visiting wildlife (gulls, butterflies, fish schools, sea turtles).
+- `WorldRuntime.swift` — owns the authoritative state; exactly one `.driver` advances time while observers only read snapshots. Also owns autosave cadence.
+- `WorldPersistence.swift` — atomic JSON saves with a schema version and corrupt-file backup.
+
+**IdleIsle** (`Sources/IdleIsle`) — SpriteKit + SwiftUI presentation.
+
+- `IslandScene.swift` — the single SKScene. Hosts sky, ocean, memory traces, palm, campfire, ambient events, and the three overlay layers below.
+- `TideLayer.swift` — wet sand, shallow water, and foam that breathe with the tide.
+- `PresenceLayer.swift` — visiting wildlife driven by `PresenceEngine`.
+- `CharacterLifeLayer.swift` — the articulated castaway rig, activity props, and the crab.
+- `ContentView.swift` — one `SpriteView` hosting the composite scene.
 - `IdleIsleApp.swift` — macOS application entry point.
 
-## Planned package boundaries
+Everything renders through one scene and one view; layers are plain `SKNode`s ordered by z-position.
 
-After First Breath compiles and the visual direction is validated, extract modules incrementally:
+## Simulation contract
 
-```text
-Packages/
-  IdleEngine/       Pure simulation and scheduling
-  IdleRenderer/     SpriteKit scene and animation adapters
-  IdleContent/      Data-driven events, characters, and locations
-  IdlePersistence/  Save snapshots and migrations
-  IdleAudio/        Ambient soundscape and event cues
+- Time enters only through `advance(by:)`, clamped to 100 ms steps.
+- All randomness is seeded, so a given seed and delta sequence produces an identical world.
+- Rendering never mutates world state; it only reads snapshots.
 
-Apps/
-  IdleIslePreview/      Development host
-  IdleIsleScreenSaver/  ScreenSaver framework host
-```
+## Persistence
 
-## Simulation rules
+The world state is encoded as JSON and saved atomically to:
 
-1. The engine advances from elapsed time, not rendered frames.
-2. Random behavior is seedable for reproducible tests and bug reports.
-3. Rendering reads state; it does not decide character behavior.
-4. Events have conditions, weights, cooldowns, and outcomes.
-5. Persistent consequences become part of world state.
-6. Offline progression must be bounded and deterministic.
+`~/Library/Application Support/IdleIsle/world-state.json`
 
-## State categories
-
-- **Clock:** world date, time of day, season, elapsed simulation time.
-- **Environment:** weather, wind, tide, wave state, light.
-- **Character:** position, energy, mood, curiosity, memory, activity, goal.
-- **Objects:** condition, location, ownership, repair state, age.
-- **Ecology:** visitors, animals, plants, resources.
-- **History:** notable events and durable consequences.
-
-## Performance target
-
-Idle Isle should remain lightweight enough to run continuously. The simulation can update at a lower fixed cadence than rendering, and visual effects should degrade gracefully on constrained hardware.
-
-## First Breath exit criteria
-
-The prototype may be refactored into packages only after it:
-
-- compiles on the supported macOS/Xcode toolchain;
-- runs continuously without crashing;
-- clearly shows autonomous behavior;
-- completes the accelerated day/night cycle;
-- demonstrates at least three ambient events;
-- passes deterministic engine tests.
+`WorldRuntime` autosaves every few seconds of simulated time and performs a final save when the scene leaves its view. Saves carry a `schemaVersion`; a save that cannot be decoded is moved aside to `world-state.corrupt.json` so a fresh world starts clean without destroying evidence.
