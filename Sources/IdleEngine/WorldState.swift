@@ -1,14 +1,14 @@
 import Foundation
 
-struct WorldState: Codable, Equatable, Sendable {
-    enum DayPhase: String, CaseIterable, Codable, Sendable {
+public struct WorldState: Codable, Equatable, Sendable {
+    public enum DayPhase: String, CaseIterable, Codable, Sendable {
         case dawn
         case day
         case sunset
         case night
     }
 
-    enum Activity: String, CaseIterable, Codable, Sendable {
+    public enum Activity: String, CaseIterable, Codable, Sendable {
         case idle
         case walking
         case fishing
@@ -21,7 +21,7 @@ struct WorldState: Codable, Equatable, Sendable {
         case watchingOcean
     }
 
-    enum AmbientEvent: String, CaseIterable, Codable, Sendable {
+    public enum AmbientEvent: String, CaseIterable, Codable, Sendable {
         case none
         case gullPasses
         case fishJumps
@@ -30,7 +30,7 @@ struct WorldState: Codable, Equatable, Sendable {
         case shootingStar
     }
 
-    enum Mood: String, Codable, Sendable {
+    public enum Mood: String, Codable, Sendable {
         case content
         case curious
         case hungry
@@ -38,8 +38,8 @@ struct WorldState: Codable, Equatable, Sendable {
         case peaceful
     }
 
-    struct Fish: Codable, Equatable, Sendable {
-        enum State: String, Codable, Sendable {
+    public struct Fish: Codable, Equatable, Sendable {
+        public enum State: String, Codable, Sendable {
             case caught
             case carried
             case cooking
@@ -48,24 +48,24 @@ struct WorldState: Codable, Equatable, Sendable {
             case stolen
         }
 
-        var state: State = .caught
-        var cookingProgress: Double = 0
+        public var state: State = .caught
+        public var cookingProgress: Double = 0
     }
 
-    struct Memory: Codable, Equatable, Sendable {
-        var totalLivedSeconds: TimeInterval = 0
-        var walkingDistance: Double = 0
-        var fishingSeconds: TimeInterval = 0
-        var campfireSeconds: TimeInterval = 0
-        var palmShadeSeconds: TimeInterval = 0
-        var oceanWatchingSeconds: TimeInterval = 0
-        var fishingTrips: Int = 0
-        var fishCaught: Int = 0
-        var mealsEaten: Int = 0
-        var fishStolenByCrab: Int = 0
-        var nightsSlept: Int = 0
-        var coconutFallsWitnessed: Int = 0
-        var lastRecordedActivity: Activity = .idle
+    public struct Memory: Codable, Equatable, Sendable {
+        public var totalLivedSeconds: TimeInterval = 0
+        public var walkingDistance: Double = 0
+        public var fishingSeconds: TimeInterval = 0
+        public var campfireSeconds: TimeInterval = 0
+        public var palmShadeSeconds: TimeInterval = 0
+        public var oceanWatchingSeconds: TimeInterval = 0
+        public var fishingTrips: Int = 0
+        public var fishCaught: Int = 0
+        public var mealsEaten: Int = 0
+        public var fishStolenByCrab: Int = 0
+        public var nightsSlept: Int = 0
+        public var coconutFallsWitnessed: Int = 0
+        public var lastRecordedActivity: Activity = .idle
 
         private enum CodingKeys: String, CodingKey {
             case totalLivedSeconds
@@ -83,9 +83,9 @@ struct WorldState: Codable, Equatable, Sendable {
             case lastRecordedActivity
         }
 
-        init() {}
+        public init() {}
 
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             totalLivedSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .totalLivedSeconds) ?? 0
             walkingDistance = try container.decodeIfPresent(Double.self, forKey: .walkingDistance) ?? 0
@@ -102,46 +102,48 @@ struct WorldState: Codable, Equatable, Sendable {
             lastRecordedActivity = try container.decodeIfPresent(Activity.self, forKey: .lastRecordedActivity) ?? .idle
         }
 
-        var pathWear: Double { min(1, walkingDistance / 2.8) }
-        var fishingSpotWear: Double { min(1, fishingSeconds / 75) }
-        var campfireWear: Double { min(1, campfireSeconds / 80) }
-        var palmShadeWear: Double { min(1, palmShadeSeconds / 90) }
-        var coconutFamiliarity: Double { min(1, Double(coconutFallsWitnessed) / 10) }
-        var rememberedDays: Int { Int(totalLivedSeconds / 200) }
+        public var pathWear: Double { min(1, walkingDistance / 2.8) }
+        public var fishingSpotWear: Double { min(1, fishingSeconds / 75) }
+        public var campfireWear: Double { min(1, campfireSeconds / 80) }
+        public var palmShadeWear: Double { min(1, palmShadeSeconds / 90) }
+        public var coconutFamiliarity: Double { min(1, Double(coconutFallsWitnessed) / 10) }
+        public var rememberedDays: Int { Int(totalLivedSeconds / 200) }
     }
 
-    var elapsedTime: TimeInterval = 0
-    var simulatedHour: Double = 8
-    var dayPhase: DayPhase = .day
+    public var elapsedTime: TimeInterval = 0
+    public var simulatedHour: Double = 8
+    public var dayPhase: DayPhase = .day
 
     // Shared island conditions. Every visible system should derive from these.
-    var wind: Double = 0.22
-    var targetWind: Double = 0.22
-    var cloudCover: Double = 0.28
-    var targetCloudCover: Double = 0.28
-    var nextWeatherChangeIn: TimeInterval = 12
+    public var wind: Double = 0.22
+    public var targetWind: Double = 0.22
+    public var cloudCover: Double = 0.28
+    public var targetCloudCover: Double = 0.28
+    public var nextWeatherChangeIn: TimeInterval = 12
 
     // The ocean completes one gentle tide cycle every 210 real seconds.
     // Phase is normalized to 0...1; level is 0 at low tide and 1 at high tide.
-    var tidePhase: Double = 0.35
-    var tideLevel: Double = 0.90
+    public var tidePhase: Double = 0.35
+    public var tideLevel: Double = 0.90
 
     // Castaway state.
-    var activity: Activity = .idle
-    var ambientEvent: AmbientEvent = .none
-    var energy: Double = 0.85
-    var hunger: Double = 0.18
-    var curiosity: Double = 0.45
-    var characterX: Double = 0.45
-    var destinationX: Double = 0.45
-    var activityTimeRemaining: TimeInterval = 2
-    var nextAmbientEventIn: TimeInterval = 5
+    public var activity: Activity = .idle
+    public var ambientEvent: AmbientEvent = .none
+    public var energy: Double = 0.85
+    public var hunger: Double = 0.18
+    public var curiosity: Double = 0.45
+    public var characterX: Double = 0.45
+    public var destinationX: Double = 0.45
+    public var activityTimeRemaining: TimeInterval = 2
+    public var nextAmbientEventIn: TimeInterval = 5
 
     // Optional preserves compatibility with world saves created before fish existed.
-    var fish: Fish?
-    var memory = Memory()
+    public var fish: Fish?
+    public var memory = Memory()
 
-    var mood: Mood {
+    public init() {}
+
+    public var mood: Mood {
         if hunger > 0.72 { return .hungry }
         if energy < 0.30 { return .tired }
         if activity == .watchingOcean || activity == .resting { return .peaceful }
@@ -149,7 +151,7 @@ struct WorldState: Codable, Equatable, Sendable {
         return .content
     }
 
-    var debugSummary: String {
+    public var debugSummary: String {
         let activityName = activity.rawValue == "watchingOcean" ? "Watching Ocean" : activity.rawValue.capitalized
         return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Tide \(Int(tideLevel * 100))% • Memory day \(memory.rememberedDays)"
     }

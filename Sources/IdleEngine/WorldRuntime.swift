@@ -4,8 +4,8 @@ import Foundation
 ///
 /// Exactly one runtime should be created as a `.driver`. Rendering layers that
 /// do not own time receive the same runtime instance and only read `state`.
-final class WorldRuntime {
-    enum Role {
+public final class WorldRuntime {
+    public enum Role {
         case driver
         case observer
     }
@@ -14,9 +14,9 @@ final class WorldRuntime {
     private let engine: SimulationEngine
     private let role: Role
 
-    private(set) var state: WorldState
+    public private(set) var state: WorldState
 
-    init(
+    public init(
         role: Role = .driver,
         persistence: WorldPersistence = WorldPersistence(),
         initialState: WorldState? = nil
@@ -29,20 +29,20 @@ final class WorldRuntime {
         state = restoredState
     }
 
-    var canAdvanceTime: Bool {
+    public var canAdvanceTime: Bool {
         role == .driver
     }
 
     /// Advances the island only when this runtime is the designated driver.
     /// Observers return the current snapshot unchanged.
     @discardableResult
-    func advance(by deltaTime: TimeInterval) -> WorldState {
+    public func advance(by deltaTime: TimeInterval) -> WorldState {
         guard canAdvanceTime else { return state }
         state = engine.advance(by: deltaTime)
         return state
     }
 
-    func save() throws {
+    public func save() throws {
         try persistence.save(state)
     }
 }

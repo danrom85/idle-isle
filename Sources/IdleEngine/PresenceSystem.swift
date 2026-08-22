@@ -1,7 +1,8 @@
 import Foundation
 
-struct PresenceState: Equatable, Sendable {
-    enum Visitor: String, CaseIterable, Sendable {
+public struct PresenceState: Equatable, Sendable {
+    public init() {}
+    public enum Visitor: String, CaseIterable, Sendable {
         case none
         case gull
         case butterflies
@@ -9,35 +10,36 @@ struct PresenceState: Equatable, Sendable {
         case seaTurtle
     }
 
-    enum Phase: String, Sendable {
+    public enum Phase: String, Sendable {
         case absent
         case arriving
         case lingering
         case departing
     }
 
-    var visitor: Visitor = .none
-    var phase: Phase = .absent
-    var progress: Double = 0
-    var phaseTimeRemaining: TimeInterval = 0
-    var nextArrivalIn: TimeInterval = 7
-    var visitCount: Int = 0
+    public var visitor: Visitor = .none
+    public var phase: Phase = .absent
+    public var progress: Double = 0
+    public var phaseTimeRemaining: TimeInterval = 0
+    public var nextArrivalIn: TimeInterval = 7
+    public var visitCount: Int = 0
 
-    var isPresent: Bool {
+    public var isPresent: Bool {
         visitor != .none && phase != .absent
     }
 }
 
-final class PresenceEngine {
-    private(set) var state: PresenceState
+public final class PresenceEngine {
+    public private(set) var state: PresenceState
     private var random: SeededGenerator
 
-    init(seed: UInt64 = 0x50524553454E4345, initialState: PresenceState = PresenceState()) {
+    public init(seed: UInt64 = 0x50524553454E4345, initialState: PresenceState = PresenceState()) {
         state = initialState
         random = SeededGenerator(seed: seed)
     }
 
-    func advance(by deltaTime: TimeInterval, world: WorldState) -> PresenceState {
+    @discardableResult
+    public func advance(by deltaTime: TimeInterval, world: WorldState) -> PresenceState {
         let delta = min(max(deltaTime, 0), 0.1)
 
         switch state.phase {

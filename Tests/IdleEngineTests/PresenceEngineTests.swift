@@ -1,5 +1,5 @@
 import XCTest
-@testable import IdleIsle
+@testable import IdleEngine
 
 final class PresenceEngineTests: XCTestCase {
     func testVisitorArrivesAndEventuallyLeaves() {

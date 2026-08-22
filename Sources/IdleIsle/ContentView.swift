@@ -1,3 +1,4 @@
+import IdleEngine
 import SpriteKit
 import SwiftUI
 

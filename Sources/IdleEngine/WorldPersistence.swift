@@ -1,9 +1,9 @@
 import Foundation
 
-struct WorldPersistence: Sendable {
+public struct WorldPersistence: Sendable {
     private let fileURL: URL
 
-    init(fileURL: URL? = nil) {
+    public init(fileURL: URL? = nil) {
         if let fileURL {
             self.fileURL = fileURL
             return
@@ -19,12 +19,12 @@ struct WorldPersistence: Sendable {
             .appendingPathComponent("world-state.json", isDirectory: false)
     }
 
-    func load() -> WorldState? {
+    public func load() -> WorldState? {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
         return try? JSONDecoder().decode(WorldState.self, from: data)
     }
 
-    func save(_ state: WorldState) throws {
+    public func save(_ state: WorldState) throws {
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directory,
@@ -37,7 +37,7 @@ struct WorldPersistence: Sendable {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    func reset() throws {
+    public func reset() throws {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
         try FileManager.default.removeItem(at: fileURL)
     }

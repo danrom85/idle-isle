@@ -1,7 +1,8 @@
 import Foundation
 
-struct CrabState: Equatable, Sendable {
-    enum Activity: String, Sendable {
+public struct CrabState: Equatable, Sendable {
+    public init() {}
+    public enum Activity: String, Sendable {
         case hidden
         case emerging
         case foraging
@@ -10,27 +11,28 @@ struct CrabState: Equatable, Sendable {
         case returningHome
     }
 
-    var activity: Activity = .hidden
-    var positionX: Double = 0.84
-    var destinationX: Double = 0.84
-    var activityTimeRemaining: TimeInterval = 4
-    var nextAppearanceIn: TimeInterval = 5
-    var familiarity: Double = 0
-    var visits: Int = 0
+    public var activity: Activity = .hidden
+    public var positionX: Double = 0.84
+    public var destinationX: Double = 0.84
+    public var activityTimeRemaining: TimeInterval = 4
+    public var nextAppearanceIn: TimeInterval = 5
+    public var familiarity: Double = 0
+    public var visits: Int = 0
 
-    var isVisible: Bool { activity != .hidden }
+    public var isVisible: Bool { activity != .hidden }
 }
 
-final class CrabEngine {
-    private(set) var state: CrabState
+public final class CrabEngine {
+    public private(set) var state: CrabState
     private var random: SeededGenerator
 
-    init(seed: UInt64 = 0x43524142, initialState: CrabState = CrabState()) {
+    public init(seed: UInt64 = 0x43524142, initialState: CrabState = CrabState()) {
         state = initialState
         random = SeededGenerator(seed: seed)
     }
 
-    func advance(by deltaTime: TimeInterval, world: WorldState) -> CrabState {
+    @discardableResult
+    public func advance(by deltaTime: TimeInterval, world: WorldState) -> CrabState {
         let delta = min(max(deltaTime, 0), 0.1)
 
         if state.activity == .hidden {

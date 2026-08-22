@@ -1,3 +1,4 @@
+import IdleEngine
 import AppKit
 import SpriteKit
 

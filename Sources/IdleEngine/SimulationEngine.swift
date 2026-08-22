@@ -3,7 +3,7 @@ import Foundation
 struct SeededGenerator: RandomNumberGenerator, Sendable {
     private var state: UInt64
 
-    init(seed: UInt64) {
+    public init(seed: UInt64) {
         state = seed == 0 ? 0x9E3779B97F4A7C15 : seed
     }
 
@@ -20,14 +20,14 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
     }
 }
 
-final class SimulationEngine {
+public final class SimulationEngine {
     private static let fishingSpotX = 0.24
     private static let campfireX = 0.65
 
-    private(set) var state: WorldState
+    public private(set) var state: WorldState
     private var random: SeededGenerator
 
-    init(seed: UInt64 = 0x1D1E15E, initialState: WorldState = WorldState()) {
+    public init(seed: UInt64 = 0x1D1E15E, initialState: WorldState = WorldState()) {
         var restoredState = initialState
         if restoredState.ambientEvent == .crabVisits {
             restoredState.ambientEvent = .none
@@ -37,7 +37,8 @@ final class SimulationEngine {
         random = SeededGenerator(seed: seed)
     }
 
-    func advance(by deltaTime: TimeInterval) -> WorldState {
+    @discardableResult
+    public func advance(by deltaTime: TimeInterval) -> WorldState {
         let delta = min(max(deltaTime, 0), 0.1)
         state.elapsedTime += delta
         state.simulatedHour = (state.simulatedHour + delta * 0.12).truncatingRemainder(dividingBy: 24)
@@ -54,7 +55,7 @@ final class SimulationEngine {
         return state
     }
 
-    static func phase(for hour: Double) -> WorldState.DayPhase {
+    public static func phase(for hour: Double) -> WorldState.DayPhase {
         switch hour {
         case 5..<7: return .dawn
         case 7..<17: return .day
