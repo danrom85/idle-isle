@@ -16,11 +16,6 @@ struct ContentView: View {
         let runtime = WorldRuntime()
         let islandScene = IslandScene(size: size, runtime: runtime)
 
-        // CharacterLifeScene now owns the articulated castaway. Hide the
-        // original rigid placeholder that still lives in IslandScene until
-        // that legacy renderer is removed completely.
-        islandScene.children.first(where: { $0.zPosition == 10 })?.isHidden = true
-
         _scene = State(initialValue: islandScene)
         _tideScene = State(initialValue: TideScene(size: size, runtime: runtime))
         _presenceScene = State(initialValue: PresenceScene(size: size, runtime: runtime))

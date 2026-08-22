@@ -24,7 +24,6 @@ final class IslandScene: SKScene {
 
     private let palm = SKNode()
     private let palmCrown = SKNode()
-    private let castaway = SKNode()
     private let campfire = SKNode()
     private let smokeLayer = SKNode()
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
@@ -116,10 +115,6 @@ final class IslandScene: SKScene {
         buildPalm()
         palm.zPosition = 6
         addChild(palm)
-
-        buildCastaway()
-        castaway.zPosition = 10
-        addChild(castaway)
 
         buildCampfire()
         campfire.zPosition = 8
@@ -295,35 +290,6 @@ final class IslandScene: SKScene {
         }
     }
 
-    private func buildCastaway() {
-        let shadow = SKShapeNode(ellipseOf: CGSize(width: 38, height: 10))
-        shadow.name = "shadow"
-        shadow.fillColor = NSColor.black.withAlphaComponent(0.17)
-        shadow.strokeColor = .clear
-        shadow.position.y = -2
-        shadow.zPosition = -1
-        castaway.addChild(shadow)
-
-        let body = SKShapeNode(rectOf: CGSize(width: 23, height: 44), cornerRadius: 8)
-        body.fillColor = NSColor(calibratedRed: 0.82, green: 0.28, blue: 0.18, alpha: 1)
-        body.strokeColor = .clear
-        body.position.y = 22
-        castaway.addChild(body)
-
-        let head = SKShapeNode(circleOfRadius: 14)
-        head.fillColor = NSColor(calibratedRed: 0.76, green: 0.52, blue: 0.32, alpha: 1)
-        head.strokeColor = .clear
-        head.position.y = 57
-        castaway.addChild(head)
-
-        let hat = SKShapeNode(ellipseOf: CGSize(width: 38, height: 11))
-        hat.name = "hat"
-        hat.fillColor = NSColor(calibratedRed: 0.88, green: 0.70, blue: 0.30, alpha: 1)
-        hat.strokeColor = .clear
-        hat.position.y = 69
-        castaway.addChild(hat)
-    }
-
     private func buildCampfire() {
         for offset in [-10.0, 10.0] {
             let log = SKShapeNode(rectOf: CGSize(width: 45, height: 9), cornerRadius: 4)
@@ -428,28 +394,6 @@ final class IslandScene: SKScene {
         campfireWear.alpha = CGFloat(state.memory.campfireWear * 0.24)
         palmWear.alpha = CGFloat(state.memory.palmShadeWear * 0.22)
 
-        castaway.position = CGPoint(
-            x: -size.width * 0.29 + CGFloat(state.characterX) * size.width * 0.58,
-            y: -size.height * 0.10
-        )
-
-        let activityScale: CGFloat = state.activity == .sleeping ? 0.82 : 1
-        let facingScale: CGFloat = state.destinationX >= state.characterX ? 1 : -1
-        castaway.xScale = facingScale * activityScale
-        castaway.yScale = activityScale
-        castaway.zRotation = state.activity == .sleeping ? -.pi / 2 : 0
-        castaway.alpha = state.activity == .sleeping ? 0.88 : 1
-        castaway.childNode(withName: "shadow")?.alpha = state.activity == .sleeping ? 0.45 : 1
-
-        if state.activity == .walking && castaway.action(forKey: "walkBounce") == nil {
-            castaway.run(.repeatForever(.sequence([
-                .moveBy(x: 0, y: 4, duration: 0.18),
-                .moveBy(x: 0, y: -4, duration: 0.18)
-            ])), withKey: "walkBounce")
-        } else if state.activity != .walking {
-            castaway.removeAction(forKey: "walkBounce")
-        }
-
         debugLabel.text = "Idle Isle • \(state.debugSummary) • Fish \(state.memory.fishingTrips) • Sleeps \(state.memory.nightsSlept)"
 
         if state.ambientEvent != lastAmbientEvent {
@@ -499,24 +443,10 @@ final class IslandScene: SKScene {
                 .removeFromParent()
             ]))
 
-            if memory.coconutFamiliarity < 0.75,
-               let hat = castaway.childNode(withName: "hat") {
-                let reaction = 0.15 * (1 - memory.coconutFamiliarity)
-                hat.run(.sequence([
-                    .rotate(byAngle: reaction, duration: 0.09),
-                    .rotate(byAngle: -reaction * 2, duration: 0.12),
-                    .rotate(toAngle: 0, duration: 0.14)
-                ]))
-            }
-
+        // Retired events stay decodable for older world saves but have no
+        // presentation anymore.
         case .crabVisits:
-            let crab = SKLabelNode(text: "⌘")
-            crab.fontSize = 24
-            crab.fontColor = NSColor(calibratedRed: 0.85, green: 0.22, blue: 0.15, alpha: 1)
-            crab.position = CGPoint(x: size.width * 0.30, y: -size.height * 0.16)
-            crab.zPosition = 20
-            addChild(crab)
-            crab.run(.sequence([.moveBy(x: -170, y: 0, duration: 4.5), .removeFromParent()]))
+            break
 
         case .shootingStar:
             let star = SKShapeNode(rectOf: CGSize(width: 70, height: 3), cornerRadius: 2)
