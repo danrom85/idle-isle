@@ -306,7 +306,15 @@ final class CharacterLifeLayer: SKNode {
         let time = CGFloat(world.elapsedTime)
         resetPose()
 
-        castawayRig.position = CGPoint(x: castawayX, y: sandY)
+        // Crossing the campfire zone arcs up and behind it instead of
+        // straight through the flames.
+        var groundedY = sandY
+        if world.activity == .walking || world.activity == .carryingFish {
+            let proximity = max(0, 1 - abs(world.characterX - SimulationEngine.campfireX) / 0.08)
+            groundedY -= CGFloat(proximity * proximity * 26)
+        }
+
+        castawayRig.position = CGPoint(x: castawayX, y: groundedY)
         castawayRig.xScale = facing
         castawayRig.alpha = 1
 
@@ -651,9 +659,10 @@ final class CharacterLifeLayer: SKNode {
         guard hermit.isVisible else { return }
 
         let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
+        let hermitFireDetour = max(0, 1 - abs(hermit.positionX - SimulationEngine.campfireX) / 0.06)
         hermitCrab.position = CGPoint(
             x: worldX(hermit.positionX),
-            y: -size.height * 0.150 + tideOffset
+            y: -size.height * 0.150 + tideOffset - CGFloat(hermitFireDetour * 12)
         )
         hermitCrab.setScale(0.85)
 
@@ -688,7 +697,11 @@ final class CharacterLifeLayer: SKNode {
 
         let shoreX = worldX(state.positionX)
         let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
-        crab.position = CGPoint(x: shoreX, y: -size.height * 0.155 + tideOffset)
+        let fireDetour = max(0, 1 - abs(state.positionX - SimulationEngine.campfireX) / 0.06)
+        crab.position = CGPoint(
+            x: shoreX,
+            y: -size.height * 0.155 + tideOffset - CGFloat(fireDetour * 14)
+        )
 
         switch state.activity {
         case .hidden:
