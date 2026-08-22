@@ -382,28 +382,43 @@ public final class IslandScene: SKScene {
         addChild(vignette)
     }
 
-    /// A whisper of animated grain keeps flat vector fills from reading as
-    /// "programmer art".
+    /// A whisper of static grain keeps flat vector fills from reading as
+    /// "programmer art". Sparse, dim, premultiplied-correct speckles baked
+    /// into a high-resolution texture.
     private func buildGrain() {
-        let dimension = 160
+        let dimension = 480
         var generator = SeededGenerator(seed: 0x47524149)
-        var pixels = [UInt8](repeating: 0, count: dimension * dimension * 4)
-        for i in stride(from: 0, to: pixels.count, by: 4) {
-            // Sparse black or white speckles at very low opacity.
-            let roll = generator.unitInterval()
-            if roll < 0.06 {
-                let value: UInt8 = roll < 0.03 ? 0 : 255
-                pixels[i] = value; pixels[i + 1] = value; pixels[i + 2] = value
-                pixels[i + 3] = 16
+        var data = Data(count: dimension * dimension * 4)
+        data.withUnsafeMutableBytes { (raw: UnsafeMutableRawBufferPointer) in
+            let pixels = raw.bindMemory(to: UInt8.self)
+            for i in stride(from: 0, to: pixels.count, by: 4) {
+                // Premultiplied rule: RGB never exceeds alpha. Dim gray
+                // speckles on ~1.5% of texels, everything else transparent.
+                let roll = generator.unitInterval()
+                if roll < 0.015 {
+                    let v = UInt8(roll / 0.015 * 14)
+                    pixels[i] = v; pixels[i + 1] = v; pixels[i + 2] = v
+                    pixels[i + 3] = v
+                }
             }
         }
-        let context = CGContext(
-            data: &pixels, width: dimension, height: dimension,
-            bitsPerComponent: 8, bytesPerRow: dimension * 4,
+
+        let provider = CGDataProvider(data: data as CFData)!
+        guard let cgImage = CGImage(
+            width: dimension,
+            height: dimension,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: dimension * 4,
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        )!
-        let grain = SKSpriteNode(texture: SKTexture(cgImage: context.makeImage()!))
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ) else { return }
+
+        let grain = SKSpriteNode(texture: SKTexture(cgImage: cgImage))
         grain.size = size
         grain.zPosition = 149
         addChild(grain)
