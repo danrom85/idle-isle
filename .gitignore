@@ -1,0 +1,7 @@
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Screensaver bundle output
+build/
