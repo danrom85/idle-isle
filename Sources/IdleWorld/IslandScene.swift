@@ -36,6 +36,7 @@ public final class IslandScene: SKScene {
     private let presenceLayer: PresenceLayer
     private let characterLifeLayer: CharacterLifeLayer
     private let soundSystem = SoundSystem()
+    private var soundEnabled = true
 
     public init(size: CGSize, runtime: WorldRuntime) {
         self.runtime = runtime
@@ -58,7 +59,18 @@ public final class IslandScene: SKScene {
         view.ignoresSiblingOrder = true
         view.allowsTransparency = false
         view.window?.makeFirstResponder(view)
-        soundSystem.start()
+        if soundEnabled { soundSystem.start() }
+    }
+
+    /// Hosts call this to reflect the user's sound preference.
+    public func setSoundEnabled(_ enabled: Bool) {
+        guard enabled != soundEnabled else { return }
+        soundEnabled = enabled
+        if enabled {
+            soundSystem.start()
+        } else {
+            soundSystem.stop()
+        }
     }
 
     override public func willMove(from view: SKView) {
@@ -95,7 +107,9 @@ public final class IslandScene: SKScene {
         tideLayer.update(world: state)
         presenceLayer.update(by: min(delta, 0.1), world: state)
         characterLifeLayer.update(by: min(delta, 0.1), world: state)
-        soundSystem.update(world: state)
+        if soundEnabled {
+            soundSystem.update(world: state)
+        }
     }
 
     override public func didChangeSize(_ oldSize: CGSize) {
