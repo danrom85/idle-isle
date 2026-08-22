@@ -8,6 +8,7 @@ public final class IslandScene: SKScene {
     private var lastWallTime: TimeInterval = 0
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
     private var whaleVisitCount = 0
+    private var smokePuffCount = 0
     private var currentWind: Double = 0.22
 
     private let sky = SKSpriteNode(texture: nil, size: .zero)
@@ -17,7 +18,9 @@ public final class IslandScene: SKScene {
     private let moon = SKNode()
     private let stars = SKNode()
     private let clouds = SKNode()
-    private let ocean = SKShapeNode()
+    private let ocean = SKSpriteNode(texture: nil, size: .zero)
+    private var oceanTextures: [WorldState.DayPhase: SKTexture] = [:]
+    private let oceanGlitter = SKNode()
     private let farWaves = SKNode()
     private let nearWaves = SKNode()
     private let island = SKShapeNode()
@@ -140,10 +143,10 @@ public final class IslandScene: SKScene {
         addChild(clouds)
         buildClouds()
 
-        ocean.fillColor = NSColor(calibratedRed: 0.09, green: 0.48, blue: 0.67, alpha: 1)
-        ocean.strokeColor = .clear
         ocean.zPosition = -20
         addChild(ocean)
+
+        buildOceanGlitter()
 
         farWaves.zPosition = -18
         addChild(farWaves)
@@ -158,6 +161,8 @@ public final class IslandScene: SKScene {
         island.lineWidth = 3
         island.zPosition = 0
         addChild(island)
+
+        buildIslandDepth()
 
         buildBeachDetail()
 
@@ -203,6 +208,7 @@ public final class IslandScene: SKScene {
         addChild(fireflyLayer)
 
         buildVignette()
+        buildGrain()
 
         // Layer order mirrors the previous overlay stack: shore effects,
         // then visitors, then the articulated castaway on top.
@@ -212,6 +218,39 @@ public final class IslandScene: SKScene {
         addChild(tideLayer)
         addChild(presenceLayer)
         addChild(characterLifeLayer)
+    }
+
+    /// Grounds the island in the water: a soft shadow beneath and a darker
+    /// wet rim along the waterline.
+    private func buildIslandDepth() {
+        let shadow = SKShapeNode(ellipseOf: CGSize(width: size.width * 0.62, height: size.height * 0.30))
+        shadow.fillColor = NSColor.black.withAlphaComponent(0.16)
+        shadow.strokeColor = .clear
+        shadow.position = CGPoint(x: size.width * 0.01, y: -size.height * 0.155)
+        shadow.zPosition = -1
+        addChild(shadow)
+
+        // A wet band traced along the waterline half of the sand ellipse.
+        let rect = CGRect(
+            x: -size.width * 0.29,
+            y: -size.height * 0.23,
+            width: size.width * 0.58,
+            height: size.height * 0.24
+        )
+        let waterline = CGMutablePath()
+        waterline.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        waterline.addCurve(
+            to: CGPoint(x: rect.maxX, y: rect.midY),
+            control1: CGPoint(x: rect.minX + rect.width * 0.30, y: rect.minY),
+            control2: CGPoint(x: rect.maxX - rect.width * 0.30, y: rect.minY)
+        )
+        let rim = SKShapeNode(path: waterline)
+        rim.fillColor = .clear
+        rim.strokeColor = NSColor(calibratedRed: 0.55, green: 0.40, blue: 0.24, alpha: 0.40)
+        rim.lineWidth = 7
+        rim.lineCap = .round
+        rim.zPosition = -1
+        addChild(rim)
     }
 
     /// Small touches that make the island feel lived-on rather than drawn-on.
@@ -343,6 +382,33 @@ public final class IslandScene: SKScene {
         addChild(vignette)
     }
 
+    /// A whisper of animated grain keeps flat vector fills from reading as
+    /// "programmer art".
+    private func buildGrain() {
+        let dimension = 160
+        var generator = SeededGenerator(seed: 0x47524149)
+        var pixels = [UInt8](repeating: 0, count: dimension * dimension * 4)
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            // Sparse black or white speckles at very low opacity.
+            let roll = generator.unitInterval()
+            if roll < 0.06 {
+                let value: UInt8 = roll < 0.03 ? 0 : 255
+                pixels[i] = value; pixels[i + 1] = value; pixels[i + 2] = value
+                pixels[i + 3] = 16
+            }
+        }
+        let context = CGContext(
+            data: &pixels, width: dimension, height: dimension,
+            bitsPerComponent: 8, bytesPerRow: dimension * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        let grain = SKSpriteNode(texture: SKTexture(cgImage: context.makeImage()!))
+        grain.size = size
+        grain.zPosition = 149
+        addChild(grain)
+    }
+
     /// Rain streaks recycled by a loop action; intensity is driven entirely
     /// by `WorldState.rain`.
     private func buildRain() {
@@ -410,13 +476,12 @@ public final class IslandScene: SKScene {
         sky.size = size
         celestial.position = CGPoint(x: 0, y: 0)
 
-        let oceanRect = CGRect(
-            x: -size.width / 2,
-            y: -size.height / 2,
-            width: size.width,
-            height: size.height * 0.49
+        ocean.size = CGSize(width: size.width, height: size.height * 0.495)
+        ocean.position = CGPoint(
+            x: 0,
+            y: -size.height / 2 + ocean.size.height / 2
         )
-        ocean.path = CGPath(rect: oceanRect, transform: nil)
+        layoutOceanGlitter()
 
         let islandRect = CGRect(
             x: -size.width * 0.29,
@@ -698,18 +763,23 @@ public final class IslandScene: SKScene {
     }
 
     private func spawnSmokePuff() {
-        let puff = SKShapeNode(circleOfRadius: 8)
-        puff.fillColor = NSColor(calibratedWhite: 0.72, alpha: 0.34)
+        var generator = SeededGenerator(seed: UInt64(bitPattern: Int64(smokePuffCount)))
+        smokePuffCount += 1
+
+        let puff = SKShapeNode(circleOfRadius: CGFloat(6 + generator.unitInterval() * 5))
+        puff.fillColor = NSColor(calibratedWhite: 0.74, alpha: 0.30)
         puff.strokeColor = .clear
-        puff.position = CGPoint(x: 0, y: 52)
+        puff.position = CGPoint(x: CGFloat(generator.unitInterval() * 8 - 4), y: 52)
         smokeLayer.addChild(puff)
 
-        let drift = 8 + currentWind * 48
+        let drift = 8 + currentWind * 48 + CGFloat(generator.unitInterval() * 16 - 8)
+        let rise = 62 + generator.unitInterval() * 26
+        let duration = 2.7 + generator.unitInterval() * 1.1
         puff.run(.sequence([
             .group([
-                .moveBy(x: drift, y: 72, duration: 3.2),
-                .scale(to: 2.1, duration: 3.2),
-                .fadeOut(withDuration: 3.2)
+                .moveBy(x: drift, y: rise, duration: duration),
+                .scale(to: 2.2, duration: duration),
+                .fadeOut(withDuration: duration)
             ]),
             .removeFromParent()
         ]))
@@ -718,7 +788,7 @@ public final class IslandScene: SKScene {
     private func render(_ state: WorldState) {
         currentWind = state.wind
         sky.texture = skyTexture(for: state.dayPhase)
-        ocean.fillColor = oceanColor(for: state.dayPhase)
+        ocean.texture = oceanTexture(for: state.dayPhase)
         positionCelestials(hour: state.simulatedHour)
         stars.run(.fadeAlpha(to: state.dayPhase == .night ? 1 : 0, duration: 1.4))
 
@@ -913,6 +983,13 @@ public final class IslandScene: SKScene {
         case .night: palette = (NSColor(calibratedRed: 0.015, green: 0.045, blue: 0.12, alpha: 1), NSColor(calibratedRed: 0.07, green: 0.16, blue: 0.30, alpha: 1))
         }
 
+        let texture = Self.linearGradientTexture(top: palette.0, bottom: palette.1)
+        skyTextures[phase] = texture
+        return texture
+    }
+
+    /// A small vertical-gradient image, drawn once and stretched by SpriteKit.
+    static func linearGradientTexture(top: NSColor, bottom: NSColor) -> SKTexture {
         let width = 4
         let height = 256
         let context = CGContext(
@@ -921,7 +998,7 @@ public final class IslandScene: SKScene {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
-        let colors = [palette.0.cgColor, palette.1.cgColor] as CFArray
+        let colors = [top.cgColor, bottom.cgColor] as CFArray
         let gradient = CGGradient(
             colorsSpace: CGColorSpaceCreateDeviceRGB(),
             colors: colors, locations: [0, 1]
@@ -932,9 +1009,7 @@ public final class IslandScene: SKScene {
             end: CGPoint(x: 0, y: 0),
             options: []
         )
-        let texture = SKTexture(cgImage: context.makeImage()!)
-        skyTextures[phase] = texture
-        return texture
+        return SKTexture(cgImage: context.makeImage()!)
     }
 
     private func buildCelestials() {
@@ -992,6 +1067,9 @@ public final class IslandScene: SKScene {
         let moonVisible = hour >= 19 || hour < 5
         moon.position = arcPosition(moonProgress)
         moon.alpha = moonVisible ? 1 : 0
+
+        oceanGlitter.position.x = (sunVisible ? sun.position.x : moon.position.x) * 0.9
+        oceanGlitter.alpha = CGFloat((sunVisible ? sun.alpha : moon.alpha) * 0.55)
     }
 
     private func skyColor(for phase: WorldState.DayPhase) -> NSColor {
@@ -1003,12 +1081,55 @@ public final class IslandScene: SKScene {
         }
     }
 
-    private func oceanColor(for phase: WorldState.DayPhase) -> NSColor {
+    /// Vertical water gradient per phase: lighter at the horizon, deep at
+    /// the bottom edge.
+    private func oceanTexture(for phase: WorldState.DayPhase) -> SKTexture {
+        if let cached = oceanTextures[phase] { return cached }
+
+        let palette: (NSColor, NSColor)
         switch phase {
-        case .dawn: return NSColor(calibratedRed: 0.18, green: 0.50, blue: 0.64, alpha: 1)
-        case .day: return NSColor(calibratedRed: 0.07, green: 0.49, blue: 0.69, alpha: 1)
-        case .sunset: return NSColor(calibratedRed: 0.23, green: 0.33, blue: 0.55, alpha: 1)
-        case .night: return NSColor(calibratedRed: 0.025, green: 0.12, blue: 0.25, alpha: 1)
+        case .dawn: palette = (NSColor(calibratedRed: 0.52, green: 0.60, blue: 0.70, alpha: 1), NSColor(calibratedRed: 0.11, green: 0.33, blue: 0.48, alpha: 1))
+        case .day: palette = (NSColor(calibratedRed: 0.28, green: 0.66, blue: 0.78, alpha: 1), NSColor(calibratedRed: 0.04, green: 0.34, blue: 0.56, alpha: 1))
+        case .sunset: palette = (NSColor(calibratedRed: 0.62, green: 0.46, blue: 0.54, alpha: 1), NSColor(calibratedRed: 0.10, green: 0.19, blue: 0.38, alpha: 1))
+        case .night: palette = (NSColor(calibratedRed: 0.09, green: 0.20, blue: 0.33, alpha: 1), NSColor(calibratedRed: 0.012, green: 0.06, blue: 0.15, alpha: 1))
+        }
+        let texture = Self.linearGradientTexture(top: palette.0, bottom: palette.1)
+        oceanTextures[phase] = texture
+        return texture
+    }
+
+    /// Sun and moon cast a shimmering column on the water.
+    private func buildOceanGlitter() {
+        oceanGlitter.zPosition = -17
+        addChild(oceanGlitter)
+
+        var generator = SeededGenerator(seed: 0x474C4954)
+        for _ in 0..<26 {
+            let dash = SKShapeNode(rectOf: CGSize(
+                width: CGFloat(6 + generator.unitInterval() * 14),
+                height: 2
+            ), cornerRadius: 1)
+            dash.fillColor = NSColor.white.withAlphaComponent(0.5 + generator.unitInterval() * 0.3)
+            dash.strokeColor = .clear
+            dash.position = CGPoint(
+                x: (generator.unitInterval() - 0.5) * 150,
+                y: -generator.unitInterval()
+            )
+            dash.run(.repeatForever(.sequence([
+                .wait(forDuration: generator.unitInterval() * 2.4),
+                .fadeAlpha(to: 0.1, duration: 0.6),
+                .fadeAlpha(to: 1.0, duration: 0.8)
+            ])))
+            oceanGlitter.addChild(dash)
+        }
+    }
+
+    /// Keeps the shimmer column under the current light source.
+    private func layoutOceanGlitter() {
+        // Re-laid out in positionCelestials; here just spread over the ocean.
+        for (index, dash) in oceanGlitter.children.enumerated() {
+            let row = index % 5
+            dash.position.y = -size.height * (0.06 + CGFloat(row) * 0.055)
         }
     }
 }

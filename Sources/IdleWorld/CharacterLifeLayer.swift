@@ -162,9 +162,18 @@ final class CharacterLifeLayer: SKNode {
 
         torso.name = "torso"
         torso.fillColor = shirt
-        torso.strokeColor = .clear
+        torso.strokeColor = NSColor.black.withAlphaComponent(0.10)
+        torso.lineWidth = 1
+        torso.path = Self.torsoPath()
         torso.position = CGPoint(x: 0, y: 24)
         castawayRig.addChild(torso)
+
+        let belt = SKShapeNode(rectOf: CGSize(width: 21, height: 4), cornerRadius: 2)
+        belt.name = "belt"
+        belt.fillColor = NSColor(calibratedRed: 0.16, green: 0.12, blue: 0.09, alpha: 1)
+        belt.strokeColor = .clear
+        belt.position.y = -14
+        torso.addChild(belt)
 
         head.fillColor = skin
         head.strokeColor = .clear
@@ -179,6 +188,15 @@ final class CharacterLifeLayer: SKNode {
             eye.position = CGPoint(x: x, y: 3)
             headGroup.addChild(eye)
         }
+
+        // Wind-blown hair escaping from under the hat.
+        let hair = SKShapeNode(ellipseOf: CGSize(width: 20, height: 9))
+        hair.fillColor = NSColor(calibratedRed: 0.32, green: 0.19, blue: 0.10, alpha: 1)
+        hair.strokeColor = .clear
+        hair.position = CGPoint(x: -3, y: 7)
+        hair.zRotation = -0.18
+        hair.zPosition = -1
+        headGroup.addChild(hair)
 
         hat.fillColor = NSColor(calibratedRed: 0.88, green: 0.70, blue: 0.30, alpha: 1)
         hat.strokeColor = NSColor.black.withAlphaComponent(0.14)
@@ -213,6 +231,34 @@ final class CharacterLifeLayer: SKNode {
         rightLeg.zPosition = -1
         castawayRig.addChild(leftLeg)
         castawayRig.addChild(rightLeg)
+    }
+
+    /// A soft pear silhouette: narrower shoulders, fuller hem.
+    private static func torsoPath() -> CGPath {
+        let path = CGMutablePath()
+        let topHalfWidth: CGFloat = 11
+        let bottomHalfWidth: CGFloat = 15
+        let halfHeight: CGFloat = 22
+
+        path.move(to: CGPoint(x: -topHalfWidth, y: halfHeight * 0.55))
+        path.addQuadCurve(
+            to: CGPoint(x: topHalfWidth, y: halfHeight * 0.55),
+            control: CGPoint(x: 0, y: halfHeight + 4)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: bottomHalfWidth, y: 0),
+            control: CGPoint(x: topHalfWidth + 6, y: halfHeight * 0.35)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: -bottomHalfWidth, y: 0),
+            control: CGPoint(x: 0, y: -halfHeight * 0.45)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: -topHalfWidth, y: halfHeight * 0.55),
+            control: CGPoint(x: -(topHalfWidth + 6), y: halfHeight * 0.35)
+        )
+        path.closeSubpath()
+        return path
     }
 
     private func buildLimb(_ limb: SKNode, length: CGFloat, width: CGFloat, color: NSColor) {
