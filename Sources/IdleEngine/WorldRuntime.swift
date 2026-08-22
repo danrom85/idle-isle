@@ -67,6 +67,20 @@ public final class WorldRuntime {
         return state
     }
 
+    /// Advances a longer span of wall-clock time in simulation-sized steps.
+    /// Used when the host was paused or occluded and the island should have
+    /// kept living. Capped so a long absence costs bounded work.
+    @discardableResult
+    public func advanceSpan(by span: TimeInterval) -> WorldState {
+        var remaining = min(max(span, 0), 600)
+        while remaining > 0 {
+            let step = min(remaining, 0.1)
+            _ = advance(by: step)
+            remaining -= step
+        }
+        return state
+    }
+
     /// Persists the world immediately, logging any failure instead of
     /// crashing or silently dropping it.
     public func save() {

@@ -62,6 +62,30 @@ final class WorldRuntimeTests: XCTestCase {
         XCTAssertEqual(saved, runtime.state)
     }
 
+    func testAdvanceSpanCatchesUpInSimulationSteps() {
+        let runtime = WorldRuntime(
+            role: .driver,
+            initialState: WorldState(),
+            autosaveInterval: nil
+        )
+
+        _ = runtime.advanceSpan(by: 25)
+
+        XCTAssertEqual(runtime.state.elapsedTime, 25, accuracy: 0.001)
+    }
+
+    func testAdvanceSpanIsCapped() {
+        let runtime = WorldRuntime(
+            role: .driver,
+            initialState: WorldState(),
+            autosaveInterval: nil
+        )
+
+        _ = runtime.advanceSpan(by: 100_000)
+
+        XCTAssertLessThanOrEqual(runtime.state.elapsedTime, 600.5)
+    }
+
     private static func temporaryFileURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("IdleIsleRuntimeTests-\(UUID().uuidString)", isDirectory: true)

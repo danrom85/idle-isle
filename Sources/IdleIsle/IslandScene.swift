@@ -5,6 +5,7 @@ import SpriteKit
 final class IslandScene: SKScene {
     private let runtime: WorldRuntime
     private var lastUpdateTime: TimeInterval = 0
+    private var lastWallTime: TimeInterval = 0
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
     private var currentWind: Double = 0.22
 
@@ -71,14 +72,26 @@ final class IslandScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
+        let wallTime = Date().timeIntervalSinceReferenceDate
+        let wallDelta = lastWallTime == 0 ? 0 : wallTime - lastWallTime
+        lastWallTime = wallTime
+
         let delta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         lastUpdateTime = currentTime
 
-        let state = runtime.advance(by: delta)
+        // A large gap means the view was paused or occluded; let the island
+        // catch up on what it missed instead of freezing in place.
+        if wallDelta > 1.5 {
+            runtime.advanceSpan(by: min(wallDelta, 120))
+        } else {
+            _ = runtime.advance(by: delta)
+        }
+
+        let state = runtime.state
         render(state)
         tideLayer.update(world: state)
-        presenceLayer.update(by: delta, world: state)
-        characterLifeLayer.update(by: delta, world: state)
+        presenceLayer.update(by: min(delta, 0.1), world: state)
+        characterLifeLayer.update(by: min(delta, 0.1), world: state)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
