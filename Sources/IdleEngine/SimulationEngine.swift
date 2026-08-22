@@ -32,6 +32,7 @@ public final class SimulationEngine {
 
     public private(set) var state: WorldState
     private var random: SeededGenerator
+    private var strollGenerator = SeededGenerator(seed: 0x57414C4B)
 
     public init(seed: UInt64 = 0x1D1E15E, initialState: WorldState = WorldState()) {
         var restoredState = initialState
@@ -267,7 +268,7 @@ public final class SimulationEngine {
 
         switch roll {
         case 0..<walkingChance:
-            state.destinationX = randomRange(0.26...0.72)
+            state.destinationX = randomStrollDestination()
             begin(.walking, duration: 12)
         case walkingChance..<watchingThreshold:
             begin(.watchingOcean, duration: randomDuration(4...8))
@@ -321,6 +322,15 @@ public final class SimulationEngine {
         }
         state.activity = activity
         state.activityTimeRemaining = duration
+    }
+
+    /// A stroll can go anywhere on the sand except inside the campfire.
+    private func randomStrollDestination() -> Double {
+        let destination = strollGenerator.unitInterval() * 0.46 + 0.26
+        if abs(destination - Self.campfireX) < 0.06 {
+            return destination < Self.campfireX ? Self.campfireX - 0.07 : Self.campfireX + 0.07
+        }
+        return destination
     }
 
     private func updateAmbientEvents(by delta: TimeInterval) {
