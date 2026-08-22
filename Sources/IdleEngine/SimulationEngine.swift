@@ -21,8 +21,11 @@ struct SeededGenerator: RandomNumberGenerator, Sendable {
 }
 
 public final class SimulationEngine {
-    private static let fishingSpotX = 0.24
-    private static let campfireX = 0.65
+    /// Island landmarks, normalized 0...1 across the walkable sand.
+    /// Renderers derive every campfire and fishing-spot visual from these so
+    /// the simulation and presentation can never drift apart.
+    public static let fishingSpotX = 0.24
+    public static let campfireX = 0.65
 
     public private(set) var state: WorldState
     private var random: SeededGenerator

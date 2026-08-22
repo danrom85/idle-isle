@@ -50,7 +50,7 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.activity, .carryingFish)
         XCTAssertEqual(engine.state.fish?.state, .carried)
         XCTAssertEqual(engine.state.memory.fishCaught, 1)
-        XCTAssertEqual(engine.state.destinationX, 0.59, accuracy: 0.001)
+        XCTAssertEqual(engine.state.destinationX, SimulationEngine.campfireX, accuracy: 0.001)
         XCTAssertGreaterThan(engine.state.hunger, 0.79)
     }
 
@@ -58,7 +58,7 @@ final class SimulationEngineTests: XCTestCase {
         var state = WorldState()
         state.activity = .cookingFish
         state.hunger = 0.8
-        state.characterX = 0.59
+        state.characterX = SimulationEngine.campfireX
         state.activityTimeRemaining = 0.05
         state.fish = WorldState.Fish(state: .cooking, cookingProgress: 0.99)
 

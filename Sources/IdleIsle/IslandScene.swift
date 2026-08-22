@@ -190,12 +190,15 @@ final class IslandScene: SKScene {
         farWaves.position = CGPoint(x: 0, y: -size.height * 0.12)
         nearWaves.position = CGPoint(x: 0, y: -size.height * 0.36)
         palm.position = CGPoint(x: size.width * 0.17, y: -size.height * 0.02)
-        campfire.position = CGPoint(x: size.width * 0.05, y: -size.height * 0.12)
+        campfire.position = CGPoint(
+            x: islandX(SimulationEngine.campfireX),
+            y: -size.height * 0.12
+        )
         smokeLayer.position = campfire.position
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
 
-        let fishingX = -size.width * 0.29 + size.width * 0.58 * 0.24
-        let fireX = -size.width * 0.29 + size.width * 0.58 * 0.59
+        let fishingX = islandX(SimulationEngine.fishingSpotX)
+        let fireX = islandX(SimulationEngine.campfireX)
         let palmX = -size.width * 0.29 + size.width * 0.58 * 0.72
         let sandY = -size.height * 0.10
 
@@ -477,6 +480,11 @@ final class IslandScene: SKScene {
                 .removeFromParent()
             ]))
         }
+    }
+
+    /// Converts a normalized island X (0...1) into scene coordinates.
+    private func islandX(_ normalizedX: Double) -> CGFloat {
+        -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
     }
 
     private func skyColor(for phase: WorldState.DayPhase) -> NSColor {

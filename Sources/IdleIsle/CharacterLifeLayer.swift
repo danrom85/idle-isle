@@ -375,7 +375,7 @@ final class CharacterLifeLayer: SKNode {
             renderSharedFish(world, at: CGPoint(x: castawayX - 18, y: sandY + 42), rotation: -0.18)
 
         case .cookingFish:
-            let fire = CGPoint(x: worldX(0.59), y: sandY + 11)
+            let fire = CGPoint(x: worldX(SimulationEngine.campfireX), y: sandY + 11)
             renderSharedFish(world, at: fire, rotation: 0.04)
             renderCookingSmoke(at: fire, world: world)
 
