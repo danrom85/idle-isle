@@ -30,6 +30,9 @@ public final class IslandScene: SKScene {
     private let palm = SKNode()
     private let palmCrown = SKNode()
     private let campfire = SKNode()
+    // Flame and smoke draw above the castaway so standing at the fire
+    // reads as being behind it, not on top of it.
+    private let fireFront = SKNode()
     private let smokeLayer = SKNode()
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
@@ -162,8 +165,10 @@ public final class IslandScene: SKScene {
         campfire.zPosition = 8
         addChild(campfire)
 
-        smokeLayer.zPosition = 14
-        addChild(smokeLayer)
+        buildFireFront()
+
+        smokeLayer.zPosition = 1
+        fireFront.addChild(smokeLayer)
 
         debugLabel.fontSize = 13
         debugLabel.horizontalAlignmentMode = .left
@@ -335,7 +340,7 @@ public final class IslandScene: SKScene {
             x: islandX(SimulationEngine.campfireX),
             y: -size.height * 0.12
         )
-        smokeLayer.position = campfire.position
+        fireFront.position = campfire.position
         rodRack.position = CGPoint(x: islandX(0.56), y: -size.height * 0.10)
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
 
@@ -460,12 +465,20 @@ public final class IslandScene: SKScene {
             campfire.addChild(log)
         }
 
+    }
+
+    /// The animated flame lives in its own overlay node so it can render in
+    /// front of the castaway while the log base stays behind him.
+    private func buildFireFront() {
+        fireFront.zPosition = 132
+        addChild(fireFront)
+
         let flame = SKShapeNode(ellipseOf: CGSize(width: 28, height: 46))
         flame.name = "flame"
         flame.fillColor = NSColor(calibratedRed: 1, green: 0.45, blue: 0.08, alpha: 0.95)
         flame.strokeColor = .clear
         flame.position.y = 28
-        campfire.addChild(flame)
+        fireFront.addChild(flame)
     }
 
     private func animateWaves() {
@@ -501,7 +514,7 @@ public final class IslandScene: SKScene {
     }
 
     private func animateFire() {
-        guard let flame = campfire.childNode(withName: "flame") else { return }
+        guard let flame = fireFront.childNode(withName: "flame") else { return }
         flame.run(.repeatForever(.sequence([
             .scaleY(to: 0.78, duration: 0.22),
             .scaleY(to: 1.08, duration: 0.27),
@@ -548,6 +561,7 @@ public final class IslandScene: SKScene {
         palmCrown.speed = CGFloat(0.65 + state.wind * 1.7)
 
         campfire.alpha = state.dayPhase == .day ? 0.72 : 1
+        fireFront.alpha = state.dayPhase == .day ? 0.85 : 1
         smokeLayer.alpha = state.dayPhase == .day ? 0.55 : 0.8
 
         pathWear.alpha = CGFloat(state.memory.pathWear * 0.23)
