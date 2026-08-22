@@ -27,6 +27,8 @@ public final class SimulationEngine {
     public static let fishingSpotX = 0.24
     public static let campfireX = 0.65
     public static let palmShadeX = 0.72
+    /// Where he stands to tend the fire: just beside it, never inside it.
+    public static let cookingSpotX = 0.585
 
     public private(set) var state: WorldState
     private var random: SeededGenerator
@@ -119,7 +121,10 @@ public final class SimulationEngine {
             break
         }
 
-        if abs(state.characterX - Self.campfireX) < 0.08 { state.memory.campfireSeconds += delta }
+        // Time near the fire or tending it from beside counts as campfire time.
+        if abs(state.characterX - Self.campfireX) < 0.09 || abs(state.characterX - Self.cookingSpotX) < 0.03 {
+            state.memory.campfireSeconds += delta
+        }
         if state.characterX > 0.68 { state.memory.palmShadeSeconds += delta }
     }
 
@@ -199,7 +204,7 @@ public final class SimulationEngine {
             switch fish.state {
             case .caught, .carried:
                 state.fish?.state = .carried
-                state.destinationX = Self.campfireX
+                state.destinationX = Self.cookingSpotX
                 begin(.carryingFish, duration: 12)
                 return
             case .cooking:
@@ -276,7 +281,7 @@ public final class SimulationEngine {
     private func catchFish() {
         state.fish = WorldState.Fish(state: .carried, cookingProgress: 0)
         state.memory.fishCaught += 1
-        state.destinationX = Self.campfireX
+        state.destinationX = Self.cookingSpotX
         begin(.carryingFish, duration: 12)
     }
 

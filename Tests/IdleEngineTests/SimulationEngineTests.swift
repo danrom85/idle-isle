@@ -50,7 +50,7 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.activity, .carryingFish)
         XCTAssertEqual(engine.state.fish?.state, .carried)
         XCTAssertEqual(engine.state.memory.fishCaught, 1)
-        XCTAssertEqual(engine.state.destinationX, SimulationEngine.campfireX, accuracy: 0.001)
+        XCTAssertEqual(engine.state.destinationX, SimulationEngine.cookingSpotX, accuracy: 0.001)
         XCTAssertGreaterThan(engine.state.hunger, 0.79)
     }
 
