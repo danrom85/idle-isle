@@ -64,8 +64,14 @@ final class IdleIsleSaverView: ScreenSaverView {
         stack.alignment = .leading
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
 
-        let window = NSWindow(contentView: stack)
-        window.title = "Idle Isle Settings"
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 64),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = stack
+        window.title = "Idle Isle"
         return window
     }()
 
