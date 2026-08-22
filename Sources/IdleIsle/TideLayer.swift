@@ -29,6 +29,7 @@ final class TideLayer: SKNode {
     func update(world state: WorldState) {
         let tide = CGFloat(state.tideLevel)
         let rise = (tide - 0.5) * size.height * 0.052
+        applyDayTint(state.dayPhase)
 
         wetSand.alpha = 0.30 + (1 - tide) * 0.34
         wetSand.yScale = 0.72 + (1 - tide) * 0.54
@@ -43,6 +44,41 @@ final class TideLayer: SKNode {
         foamGlints.alpha = 0.18 + tide * 0.48
         foamGlints.position.y = -size.height * 0.19 + rise
         foamGlints.speed = 0.65 + tide * 0.75
+    }
+
+    /// Water and foam shift with the same light that colors the sky.
+    private func applyDayTint(_ phase: WorldState.DayPhase) {
+        // Per-channel multipliers relative to full daylight.
+        let tint: (r: CGFloat, g: CGFloat, b: CGFloat)
+        switch phase {
+        case .day:
+            tint = (1.00, 1.00, 1.00)
+        case .dawn:
+            tint = (1.10, 0.88, 0.80)
+        case .sunset:
+            tint = (1.08, 0.72, 0.62)
+        case .night:
+            tint = (0.30, 0.42, 0.68)
+        }
+
+        shallowWater.fillColor = NSColor(
+            calibratedRed: 0.16 * tint.r,
+            green: 0.62 * tint.g,
+            blue: 0.70 * tint.b,
+            alpha: 1
+        )
+        wetSand.fillColor = NSColor(
+            calibratedRed: min(1, 0.52 * tint.r),
+            green: 0.38 * tint.g,
+            blue: 0.22 * tint.b,
+            alpha: 1
+        )
+
+        let nightDim: CGFloat = phase == .night ? 0.55 : 1
+        foam.strokeColor = NSColor.white.withAlphaComponent(0.58 * nightDim)
+        for glint in foamGlints.children where glint is SKShapeNode {
+            (glint as! SKShapeNode).fillColor = NSColor.white.withAlphaComponent(0.48 * nightDim)
+        }
     }
 
     private func buildShoreline() {
