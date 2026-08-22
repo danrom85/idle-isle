@@ -10,8 +10,8 @@ import IdleEngine
 final class TideLayer: SKNode {
     private let size: CGSize
 
-    private let wetSand = SKShapeNode()
-    private let shallowWater = SKShapeNode()
+    private let wetSand = SKSpriteNode(texture: nil, size: .zero)
+    private let shallowWater = SKSpriteNode(texture: nil, size: .zero)
     private let foam = SKShapeNode()
     private let foamGlints = SKNode()
 
@@ -31,11 +31,11 @@ final class TideLayer: SKNode {
         let rise = (tide - 0.5) * size.height * 0.052
         applyDayTint(state.dayPhase)
 
-        wetSand.alpha = 0.30 + (1 - tide) * 0.34
+        wetSand.alpha = 0.45 + (1 - tide) * 0.40
         wetSand.yScale = 0.72 + (1 - tide) * 0.54
         wetSand.position.y = rise * 0.18
 
-        shallowWater.alpha = 0.10 + tide * 0.34
+        shallowWater.alpha = 0.35 + tide * 0.45
         shallowWater.yScale = 0.66 + tide * 0.62
         shallowWater.position.y = rise * 0.52
 
@@ -61,18 +61,20 @@ final class TideLayer: SKNode {
             tint = (0.30, 0.42, 0.68)
         }
 
-        shallowWater.fillColor = NSColor(
-            calibratedRed: 0.16 * tint.r,
-            green: 0.62 * tint.g,
-            blue: 0.70 * tint.b,
+        shallowWater.color = NSColor(
+            calibratedRed: min(1, tint.r),
+            green: min(1, tint.g),
+            blue: min(1, tint.b),
             alpha: 1
         )
-        wetSand.fillColor = NSColor(
+        shallowWater.colorBlendFactor = phase == .night ? 0.55 : 0.18
+        wetSand.color = NSColor(
             calibratedRed: min(1, 0.52 * tint.r),
-            green: 0.38 * tint.g,
-            blue: 0.22 * tint.b,
+            green: min(1, 0.38 * tint.g),
+            blue: min(1, 0.22 * tint.b),
             alpha: 1
         )
+        wetSand.colorBlendFactor = phase == .night ? 0.5 : 0.15
 
         let nightDim: CGFloat = phase == .night ? 0.55 : 1
         foam.strokeColor = NSColor.white.withAlphaComponent(0.58 * nightDim)
@@ -82,13 +84,19 @@ final class TideLayer: SKNode {
     }
 
     private func buildShoreline() {
-        wetSand.fillColor = NSColor(calibratedRed: 0.52, green: 0.38, blue: 0.22, alpha: 1)
-        wetSand.strokeColor = .clear
+        // Radial falloff instead of hard ellipse edges: the water melts into
+        // the sand and the sand into the dry beach.
+        wetSand.texture = Self.radialTexture(
+            center: NSColor(calibratedRed: 0.52, green: 0.38, blue: 0.22, alpha: 0.85),
+            edge: NSColor(calibratedRed: 0.52, green: 0.38, blue: 0.22, alpha: 0)
+        )
         wetSand.zPosition = 1
         addChild(wetSand)
 
-        shallowWater.fillColor = NSColor(calibratedRed: 0.16, green: 0.62, blue: 0.70, alpha: 1)
-        shallowWater.strokeColor = .clear
+        shallowWater.texture = Self.radialTexture(
+            center: NSColor(calibratedRed: 0.16, green: 0.62, blue: 0.70, alpha: 0.55),
+            edge: NSColor(calibratedRed: 0.16, green: 0.62, blue: 0.70, alpha: 0)
+        )
         shallowWater.zPosition = 2
         addChild(shallowWater)
 
@@ -118,22 +126,40 @@ final class TideLayer: SKNode {
         layoutShoreline()
     }
 
-    private func layoutShoreline() {
-        let wetRect = CGRect(
-            x: -size.width * 0.285,
-            y: -size.height * 0.225,
-            width: size.width * 0.57,
-            height: size.height * 0.112
+    /// A soft elliptical blob: full color at the center, transparent at the
+    /// rim. Used so shore effects never show a hard edge.
+    static func radialTexture(center: NSColor, edge: NSColor) -> SKTexture {
+        let dimension = 256
+        let context = CGContext(
+            data: nil, width: dimension, height: dimension,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        let colors = [center.cgColor, edge.cgColor] as CFArray
+        let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors, locations: [0, 1]
+        )!
+        context.drawRadialGradient(
+            gradient,
+            startCenter: CGPoint(x: CGFloat(dimension) / 2, y: CGFloat(dimension) / 2),
+            startRadius: 0,
+            endCenter: CGPoint(x: CGFloat(dimension) / 2, y: CGFloat(dimension) / 2),
+            endRadius: CGFloat(dimension) / 2,
+            options: []
         )
-        wetSand.path = CGPath(ellipseIn: wetRect, transform: nil)
+        return SKTexture(cgImage: context.makeImage()!)
+    }
 
-        let waterRect = CGRect(
-            x: -size.width * 0.29,
-            y: -size.height * 0.245,
-            width: size.width * 0.58,
-            height: size.height * 0.105
-        )
-        shallowWater.path = CGPath(ellipseIn: waterRect, transform: nil)
+    private func layoutShoreline() {
+        // Sprites are oversized relative to the visible pool so the radial
+        // fade completes before the edge arrives.
+        wetSand.size = CGSize(width: size.width * 0.62, height: size.height * 0.17)
+        wetSand.position = CGPoint(x: 0, y: -size.height * 0.168)
+
+        shallowWater.size = CGSize(width: size.width * 0.60, height: size.height * 0.155)
+        shallowWater.position = CGPoint(x: 0, y: -size.height * 0.192)
 
         let foamPath = CGMutablePath()
         foamPath.move(to: CGPoint(x: -size.width * 0.275, y: -size.height * 0.175))
