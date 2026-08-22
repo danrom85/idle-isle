@@ -170,4 +170,52 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertEqual(loaded, state)
         try? FileManager.default.removeItem(at: temporaryDirectory)
     }
+
+    func testStormsBringRainUnderHeavyCloud() {
+        var state = WorldState()
+        state.cloudCover = 0.9
+        state.targetCloudCover = 0.9
+        state.nextWeatherChangeIn = 0.05
+
+        let engine = SimulationEngine(seed: 11, initialState: state)
+
+        // Advance well past a few weather cycles; some cycle must pick up
+        // rain given the near-total cloud cover.
+        for _ in 0..<600 { _ = engine.advance(by: 0.1) }
+
+        XCTAssertGreaterThan(engine.state.rain, 0.05)
+    }
+
+    func testClearSkiesNeverRain() {
+        var state = WorldState()
+        state.cloudCover = 0.1
+        state.targetCloudCover = 0.1
+
+        let engine = SimulationEngine(seed: 3, initialState: state)
+        for _ in 0..<1200 { _ = engine.advance(by: 0.1) }
+
+        XCTAssertEqual(engine.state.rain, 0, accuracy: 0.001)
+    }
+
+    func testHeavyRainSendsCastawayToPalmShade() {
+        var state = WorldState()
+        state.rain = 0.9
+        state.targetRain = 0.9
+        state.cloudCover = 0.85
+        state.targetCloudCover = 0.85
+        state.nextWeatherChangeIn = 999
+        state.characterX = 0.45
+        state.activityTimeRemaining = 0.05
+        state.hunger = 0.2
+
+        let engine = SimulationEngine(seed: 5, initialState: state)
+        for _ in 0..<400 { _ = engine.advance(by: 0.1) }
+
+        XCTAssertGreaterThan(engine.state.rain, 0.55)
+        XCTAssertTrue(
+            engine.state.destinationX == SimulationEngine.palmShadeX
+                || abs(engine.state.characterX - SimulationEngine.palmShadeX) < 0.05,
+            "expected shelter under the palm, got x=\(engine.state.characterX) dest=\(engine.state.destinationX)"
+        )
+    }
 }

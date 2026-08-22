@@ -23,6 +23,7 @@ public final class IslandScene: SKScene {
     private let campfireWear = SKShapeNode()
     private let palmWear = SKShapeNode()
     private let rodRack = SKNode()
+    private let rainLayer = SKNode()
 
     private let palm = SKNode()
     private let palmCrown = SKNode()
@@ -180,6 +181,9 @@ public final class IslandScene: SKScene {
         rodRack.zPosition = 5
         addChild(rodRack)
 
+        rainLayer.zPosition = 135
+        addChild(rainLayer)
+
         // Layer order mirrors the previous overlay stack: shore effects,
         // then visitors, then the articulated castaway on top.
         tideLayer.zPosition = 110
@@ -203,6 +207,40 @@ public final class IslandScene: SKScene {
         }
 
         buildRodRack()
+        buildRain()
+    }
+
+    /// Rain streaks recycled by a loop action; intensity is driven entirely
+    /// by `WorldState.rain`.
+    private func buildRain() {
+        rainLayer.isHidden = true
+
+        for index in 0..<70 {
+            let streak = SKShapeNode(rectOf: CGSize(width: 1.5, height: 15), cornerRadius: 0.75)
+            streak.fillColor = NSColor.white.withAlphaComponent(0.32)
+            streak.strokeColor = .clear
+            streak.zRotation = -0.12
+
+            let fallDistance = size.height * 0.85
+            let duration = 0.55 + Double(index % 5) * 0.09
+            let drift = -fallDistance * 0.18
+            let startX = size.width * (CGFloat(index % 11) / 11 - 0.5)
+            let startY = size.height * 0.45 + CGFloat(index % 7) * 22
+            streak.position = CGPoint(x: startX, y: startY)
+
+            streak.run(.repeatForever(.sequence([
+                .moveBy(x: drift, y: -fallDistance, duration: duration),
+                .run { [weak self, weak streak] in
+                    guard let self, let streak else { return }
+                    streak.position = CGPoint(
+                        x: self.size.width * (CGFloat.random(in: 0...1) - 0.5),
+                        y: self.size.height * 0.45
+                    )
+                }
+            ])))
+
+            rainLayer.addChild(streak)
+        }
     }
 
     /// A rack of hand-cut fishing rods appears as fishing becomes habit.
@@ -482,6 +520,12 @@ public final class IslandScene: SKScene {
         palmWear.alpha = CGFloat(state.memory.palmShadeWear * 0.22)
 
         renderRodRack(trips: state.memory.fishingTrips)
+
+        let rainAlpha = CGFloat(state.rain)
+        rainLayer.isHidden = rainAlpha < 0.02
+        rainLayer.alpha = rainAlpha
+        rainLayer.speed = CGFloat(0.7 + state.rain * 0.6)
+        rainLayer.zRotation = CGFloat(-state.wind) * 0.14
 
         debugLabel.text = "Idle Isle • \(state.debugSummary) • Fish \(state.memory.fishingTrips) • Sleeps \(state.memory.nightsSlept)"
 

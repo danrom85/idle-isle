@@ -26,6 +26,7 @@ public final class SimulationEngine {
     /// the simulation and presentation can never drift apart.
     public static let fishingSpotX = 0.24
     public static let campfireX = 0.65
+    public static let palmShadeX = 0.72
 
     public private(set) var state: WorldState
     private var random: SeededGenerator
@@ -72,11 +73,24 @@ public final class SimulationEngine {
         if state.nextWeatherChangeIn <= 0 {
             state.targetWind = randomRange(0.05...0.82)
             state.targetCloudCover = randomRange(0.05...0.88)
+
+            // Storms only gather under heavy cloud, and never fully soak
+            // the island unless the sky is nearly covered.
+            if state.targetCloudCover > 0.62,
+               random.unitInterval() < 0.55 * (state.targetCloudCover - 0.6) / 0.4 {
+                let ceiling = min(1, 0.45 + state.targetCloudCover * 0.65)
+                state.targetRain = randomRange(0.25...ceiling)
+            } else {
+                state.targetRain = 0
+            }
+
             state.nextWeatherChangeIn = randomDuration(10...22)
         }
 
         state.wind += (state.targetWind - state.wind) * delta * 0.12
         state.cloudCover += (state.targetCloudCover - state.cloudCover) * delta * 0.08
+        // Rain drifts in slowly and lingers a little after the sky clears.
+        state.rain += (state.targetRain - state.rain) * delta * 0.035
     }
 
     private func updateTide(by delta: TimeInterval) {
@@ -201,6 +215,17 @@ public final class SimulationEngine {
 
         if state.dayPhase == .night && state.energy < 0.92 {
             begin(.sleeping, duration: randomDuration(7...12))
+            return
+        }
+
+        // A downpour sends him to wait beneath the palm until it eases.
+        if state.rain > 0.55 {
+            if abs(state.characterX - Self.palmShadeX) > 0.03 {
+                state.destinationX = Self.palmShadeX
+                begin(.walking, duration: 12)
+            } else {
+                begin(.resting, duration: randomDuration(6...10))
+            }
             return
         }
 

@@ -126,6 +126,11 @@ public struct WorldState: Codable, Equatable, Sendable {
     public var tidePhase: Double = 0.35
     public var tideLevel: Double = 0.90
 
+    // Rainfall intensity, 0 at clear skies and 1 at a steady downpour.
+    // Storms arrive only under heavy cloud and fade slowly afterward.
+    public var rain: Double = 0
+    public var targetRain: Double = 0
+
     // Castaway state.
     public var activity: Activity = .idle
     public var ambientEvent: AmbientEvent = .none
@@ -148,6 +153,63 @@ public struct WorldState: Codable, Equatable, Sendable {
 
     public init() {}
 
+    // Field-by-field decoding keeps older world saves loading as the state
+    // gains new properties; missing keys fall back to current defaults.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        elapsedTime = try container.decodeIfPresent(TimeInterval.self, forKey: .elapsedTime) ?? 0
+        simulatedHour = try container.decodeIfPresent(Double.self, forKey: .simulatedHour) ?? 8
+        dayPhase = try container.decodeIfPresent(DayPhase.self, forKey: .dayPhase) ?? .day
+        wind = try container.decodeIfPresent(Double.self, forKey: .wind) ?? 0.22
+        targetWind = try container.decodeIfPresent(Double.self, forKey: .targetWind) ?? 0.22
+        cloudCover = try container.decodeIfPresent(Double.self, forKey: .cloudCover) ?? 0.28
+        targetCloudCover = try container.decodeIfPresent(Double.self, forKey: .targetCloudCover) ?? 0.28
+        nextWeatherChangeIn = try container.decodeIfPresent(TimeInterval.self, forKey: .nextWeatherChangeIn) ?? 12
+        tidePhase = try container.decodeIfPresent(Double.self, forKey: .tidePhase) ?? 0.35
+        tideLevel = try container.decodeIfPresent(Double.self, forKey: .tideLevel) ?? 0.90
+        rain = try container.decodeIfPresent(Double.self, forKey: .rain) ?? 0
+        targetRain = try container.decodeIfPresent(Double.self, forKey: .targetRain) ?? 0
+        activity = try container.decodeIfPresent(Activity.self, forKey: .activity) ?? .idle
+        ambientEvent = try container.decodeIfPresent(AmbientEvent.self, forKey: .ambientEvent) ?? .none
+        energy = try container.decodeIfPresent(Double.self, forKey: .energy) ?? 0.85
+        hunger = try container.decodeIfPresent(Double.self, forKey: .hunger) ?? 0.18
+        curiosity = try container.decodeIfPresent(Double.self, forKey: .curiosity) ?? 0.45
+        characterX = try container.decodeIfPresent(Double.self, forKey: .characterX) ?? 0.45
+        destinationX = try container.decodeIfPresent(Double.self, forKey: .destinationX) ?? 0.45
+        activityTimeRemaining = try container.decodeIfPresent(TimeInterval.self, forKey: .activityTimeRemaining) ?? 2
+        nextAmbientEventIn = try container.decodeIfPresent(TimeInterval.self, forKey: .nextAmbientEventIn) ?? 5
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        fish = try container.decodeIfPresent(Fish.self, forKey: .fish)
+        memory = try container.decodeIfPresent(Memory.self, forKey: .memory) ?? Memory()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case elapsedTime
+        case simulatedHour
+        case dayPhase
+        case wind
+        case targetWind
+        case cloudCover
+        case targetCloudCover
+        case nextWeatherChangeIn
+        case tidePhase
+        case tideLevel
+        case rain
+        case targetRain
+        case activity
+        case ambientEvent
+        case energy
+        case hunger
+        case curiosity
+        case characterX
+        case destinationX
+        case activityTimeRemaining
+        case nextAmbientEventIn
+        case schemaVersion
+        case fish
+        case memory
+    }
+
     public var mood: Mood {
         if hunger > 0.72 { return .hungry }
         if energy < 0.30 { return .tired }
@@ -158,6 +220,6 @@ public struct WorldState: Codable, Equatable, Sendable {
 
     public var debugSummary: String {
         let activityName = activity.rawValue == "watchingOcean" ? "Watching Ocean" : activity.rawValue.capitalized
-        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Tide \(Int(tideLevel * 100))% • Memory day \(memory.rememberedDays)"
+        return "\(dayPhase.rawValue.capitalized) • \(activityName) • \(mood.rawValue.capitalized) • E \(Int(energy * 100))% • H \(Int(hunger * 100))% • Wind \(Int(wind * 100))% • Rain \(Int(rain * 100))% • Tide \(Int(tideLevel * 100))% • Memory day \(memory.rememberedDays)"
     }
 }
