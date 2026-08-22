@@ -337,7 +337,16 @@ public final class SimulationEngine {
             candidates = [.gullPasses, .fishJumps, .none]
         }
 
-        state.ambientEvent = candidates[Int(random.next() % UInt64(candidates.count))]
+        // A whale surfaces only on calm days over deeper low-tide water.
+        var pool = candidates
+        if state.dayPhase == .day,
+           state.tideLevel < 0.45,
+           state.wind < 0.45,
+           state.rain < 0.3 {
+            pool.append(.whaleSpout)
+        }
+
+        state.ambientEvent = pool[Int(random.next() % UInt64(pool.count))]
         if state.ambientEvent == .coconutFalls { state.memory.coconutFallsWitnessed += 1 }
         state.nextAmbientEventIn = randomDuration(4...9)
     }

@@ -28,6 +28,7 @@ public struct WorldState: Codable, Equatable, Sendable {
         case coconutFalls
         case crabVisits
         case shootingStar
+        case whaleSpout
     }
 
     public enum Mood: String, Codable, Sendable {

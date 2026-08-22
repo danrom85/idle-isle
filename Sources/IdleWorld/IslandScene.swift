@@ -7,6 +7,7 @@ public final class IslandScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private var lastWallTime: TimeInterval = 0
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
+    private var whaleVisitCount = 0
     private var currentWind: Double = 0.22
 
     private let sky = SKSpriteNode(color: .systemBlue, size: .zero)
@@ -24,6 +25,7 @@ public final class IslandScene: SKScene {
     private let palmWear = SKShapeNode()
     private let rodRack = SKNode()
     private let rainLayer = SKNode()
+    private let fireflyLayer = SKNode()
 
     private let palm = SKNode()
     private let palmCrown = SKNode()
@@ -184,6 +186,9 @@ public final class IslandScene: SKScene {
         rainLayer.zPosition = 135
         addChild(rainLayer)
 
+        fireflyLayer.zPosition = 100
+        addChild(fireflyLayer)
+
         // Layer order mirrors the previous overlay stack: shore effects,
         // then visitors, then the articulated castaway on top.
         tideLayer.zPosition = 110
@@ -208,6 +213,37 @@ public final class IslandScene: SKScene {
 
         buildRodRack()
         buildRain()
+        buildFireflies()
+    }
+
+    /// Fireflies drift through warm nights; the layer fades with the
+    /// day phase, wind, and rain in render(_:).
+    private func buildFireflies() {
+        fireflyLayer.alpha = 0
+
+        for index in 0..<10 {
+            let fly = SKShapeNode(circleOfRadius: 1.8)
+            fly.fillColor = NSColor(calibratedRed: 1.0, green: 0.92, blue: 0.55, alpha: 1)
+            fly.strokeColor = .clear
+            fly.glowWidth = 2.5
+            fly.position = CGPoint(
+                x: size.width * (CGFloat(index % 5) / 5 - 0.5) + CGFloat((index % 3) * 17),
+                y: -size.height * 0.02 + CGFloat((index % 4) * 14)
+            )
+
+            let wanderX = CGFloat(18 + (index % 3) * 9) * (index % 2 == 0 ? 1 : -1)
+            let wanderY = CGFloat(10 + (index % 4) * 5)
+            fly.run(.repeatForever(.sequence([
+                .moveBy(x: wanderX, y: wanderY, duration: 2.6 + Double(index % 3) * 0.7),
+                .moveBy(x: -wanderX, y: -wanderY, duration: 2.6 + Double(index % 3) * 0.7)
+            ])))
+            fly.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 0.15, duration: 0.7 + Double(index % 4) * 0.3),
+                .fadeAlpha(to: 0.95, duration: 0.7 + Double(index % 3) * 0.25)
+            ])))
+
+            fireflyLayer.addChild(fly)
+        }
     }
 
     /// Rain streaks recycled by a loop action; intensity is driven entirely
@@ -527,6 +563,12 @@ public final class IslandScene: SKScene {
         rainLayer.speed = CGFloat(0.7 + state.rain * 0.6)
         rainLayer.zRotation = CGFloat(-state.wind) * 0.14
 
+        let fireflyTarget: Double = (state.dayPhase == .night && state.wind < 0.55 && state.rain < 0.3) ? 0.9 : 0
+        let current = Double(fireflyLayer.alpha)
+        fireflyLayer.alpha = CGFloat(current + (fireflyTarget - current) * 0.012)
+        fireflyLayer.isHidden = fireflyLayer.alpha < 0.02
+        fireflyLayer.speed = CGFloat(0.6 + state.wind * 0.5)
+
         debugLabel.text = "Idle Isle • \(state.debugSummary) • Fish \(state.memory.fishingTrips) • Sleeps \(state.memory.nightsSlept)"
 
         if state.ambientEvent != lastAmbientEvent {
@@ -604,6 +646,54 @@ public final class IslandScene: SKScene {
         // presentation anymore.
         case .crabVisits:
             break
+
+        case .whaleSpout:
+            whaleVisitCount += 1
+            let lane = Double(whaleVisitCount % 3) - 1
+            let spoutX = size.width * CGFloat(0.05 + lane * 0.06)
+
+            // A dark back glides past first.
+            let back = SKShapeNode(ellipseOf: CGSize(width: 90, height: 16))
+            back.fillColor = NSColor(calibratedRed: 0.10, green: 0.16, blue: 0.22, alpha: 0.85)
+            back.strokeColor = .clear
+            back.position = CGPoint(x: spoutX, y: -size.height * 0.155)
+            back.zPosition = 18
+            addChild(back)
+
+            // Then the spout rises twice.
+            for burst in 0..<2 {
+                let puff = SKShapeNode(ellipseOf: CGSize(width: 14, height: 20))
+                puff.fillColor = NSColor.white.withAlphaComponent(0.75)
+                puff.strokeColor = .clear
+                puff.position = CGPoint(x: spoutX, y: -size.height * 0.148)
+                puff.zPosition = 19
+                puff.alpha = 0
+                addChild(puff)
+
+                let delay = SKAction.wait(forDuration: 0.7 + Double(burst) * 1.3)
+                puff.run(.sequence([
+                    delay,
+                    .group([
+                        .moveBy(x: -6, y: 34, duration: 0.5),
+                        .fadeAlpha(to: 0.8, duration: 0.18),
+                        .scaleY(to: 2.2, duration: 0.5)
+                    ]),
+                    .group([
+                        .moveBy(x: 4, y: 10, duration: 0.6),
+                        .fadeOut(withDuration: 0.6)
+                    ]),
+                    .removeFromParent()
+                ]))
+            }
+
+            back.run(.sequence([
+                .wait(forDuration: 2.6),
+                .group([
+                    .moveBy(x: -70, y: -4, duration: 1.6),
+                    .fadeOut(withDuration: 1.6)
+                ]),
+                .removeFromParent()
+            ]))
 
         case .shootingStar:
             let star = SKShapeNode(rectOf: CGSize(width: 70, height: 3), cornerRadius: 2)

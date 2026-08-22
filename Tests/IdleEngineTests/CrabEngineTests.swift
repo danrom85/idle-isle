@@ -67,4 +67,30 @@ final class CrabEngineTests: XCTestCase {
 
         XCTAssertGreaterThan(engine.state.familiarity, initialFamiliarity)
     }
+
+    func testHermitCrabStaysHiddenUntilRedCrabIsFamiliar() {
+        let engine = CrabEngine(seed: 21)
+
+        // Unfamiliar red crab: hermit never emerges no matter how long passes.
+        for _ in 0..<2000 { _ = engine.advance(by: 0.1, world: WorldState()) }
+        XCTAssertFalse(engine.hermit.isVisible)
+    }
+
+    func testHermitCrabEmergesOnceCrabIsComfortable() {
+        var state = CrabState()
+        state.activity = .foraging
+        state.familiarity = 0.9
+        state.positionX = 0.70
+        state.destinationX = 0.70
+        let engine = CrabEngine(seed: 21, initialState: state)
+
+        var world = WorldState()
+        world.dayPhase = .day
+        world.tideLevel = 0.4
+
+        for _ in 0..<1200 { _ = engine.advance(by: 0.1, world: world) }
+
+        XCTAssertTrue(engine.hermit.isVisible || engine.hermit.nextAppearanceIn < 45,
+                      "hermit should have had a chance to visit")
+    }
 }

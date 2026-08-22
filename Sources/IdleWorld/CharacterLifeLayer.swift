@@ -21,6 +21,7 @@ final class CharacterLifeLayer: SKNode {
     private let rightLeg = SKNode()
 
     private let crab = SKNode()
+    private let hermitCrab = SKNode()
     private let fishingRod = SKShapeNode()
     private let fishingLine = SKShapeNode()
     private let float = SKShapeNode(circleOfRadius: 4)
@@ -38,6 +39,7 @@ final class CharacterLifeLayer: SKNode {
         buildActivityProps()
         buildCastawayRig()
         buildCrab()
+        buildHermitCrab()
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -49,6 +51,7 @@ final class CharacterLifeLayer: SKNode {
         renderCastaway(world)
         renderWorldActivity(world)
         renderCrab(crabState, world: world)
+        renderHermitCrab(crabEngine.hermit, world: world)
         reactToAmbientEvent(world)
 
         // Applied after posing so the duck survives resetPose().
@@ -520,6 +523,86 @@ final class CharacterLifeLayer: SKNode {
 
     private func worldX(_ normalizedX: Double) -> CGFloat {
         -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
+    }
+
+    /// A smaller neighbor in a borrowed shell: rounder, earthier, slower.
+    private func buildHermitCrab() {
+        hermitCrab.zPosition = 46
+        hermitCrab.isHidden = true
+        addChild(hermitCrab)
+
+        let shell = SKShapeNode(circleOfRadius: 13)
+        shell.fillColor = NSColor(calibratedRed: 0.62, green: 0.50, blue: 0.28, alpha: 1)
+        shell.strokeColor = NSColor.white.withAlphaComponent(0.14)
+        shell.lineWidth = 1
+        hermitCrab.addChild(shell)
+
+        let spiralTip = SKShapeNode(circleOfRadius: 4.5)
+        spiralTip.fillColor = NSColor(calibratedRed: 0.48, green: 0.37, blue: 0.19, alpha: 1)
+        spiralTip.strokeColor = .clear
+        spiralTip.position = CGPoint(x: -5, y: 5)
+        hermitCrab.addChild(spiralTip)
+
+        for side in [-1.0, 1.0] {
+            let claw = SKShapeNode(circleOfRadius: 4.5)
+            claw.fillColor = NSColor(calibratedRed: 0.72, green: 0.55, blue: 0.38, alpha: 1)
+            claw.strokeColor = .clear
+            claw.position = CGPoint(x: side * 14, y: 3)
+            hermitCrab.addChild(claw)
+
+            for legIndex in 0..<3 {
+                let leg = SKShapeNode(rectOf: CGSize(width: 11, height: 2.5), cornerRadius: 1.25)
+                leg.fillColor = claw.fillColor
+                leg.strokeColor = .clear
+                leg.position = CGPoint(x: side * 12, y: CGFloat(legIndex * 5 - 6))
+                leg.zRotation = side * CGFloat(0.26 + Double(legIndex) * 0.10)
+                hermitCrab.addChild(leg)
+            }
+        }
+
+        for x in [-4.5, 4.5] {
+            let eye = SKShapeNode(circleOfRadius: 1.8)
+            eye.fillColor = NSColor(calibratedWhite: 0.08, alpha: 1)
+            eye.strokeColor = .clear
+            eye.position = CGPoint(x: x, y: 6)
+            hermitCrab.addChild(eye)
+        }
+    }
+
+    private func renderHermitCrab(_ hermit: HermitCrabState, world: WorldState) {
+        hermitCrab.isHidden = !hermit.isVisible
+        guard hermit.isVisible else { return }
+
+        let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
+        hermitCrab.position = CGPoint(
+            x: worldX(hermit.positionX),
+            y: -size.height * 0.150 + tideOffset
+        )
+        hermitCrab.setScale(0.85)
+
+        switch hermit.activity {
+        case .hidden:
+            break
+        case .emerging, .returningHome:
+            hermitCrab.alpha = 0.8
+            hermitCrab.xScale = hermit.destinationX >= hermit.positionX ? 0.85 : -0.85
+            if hermitCrab.action(forKey: "hermitScuttle") == nil {
+                hermitCrab.run(.repeatForever(.sequence([
+                    .moveBy(x: 0, y: 2, duration: 0.19),
+                    .moveBy(x: 0, y: -2, duration: 0.19)
+                ])), withKey: "hermitScuttle")
+            }
+        case .wandering:
+            hermitCrab.alpha = 1
+            hermitCrab.removeAction(forKey: "hermitScuttle")
+            hermitCrab.zRotation = sin(CGFloat(hermit.activityTimeRemaining) * 2.2) * 0.05
+        case .watchingCastaway:
+            hermitCrab.alpha = 1
+            hermitCrab.removeAction(forKey: "hermitScuttle")
+            hermitCrab.zRotation = 0
+            let castawayX = worldX(world.characterX)
+            hermitCrab.xScale = castawayX >= hermitCrab.position.x ? 0.85 : -0.85
+        }
     }
 
     private func renderCrab(_ state: CrabState, world: WorldState) {
