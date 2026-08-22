@@ -44,6 +44,15 @@ open "build/Idle Isle.saver"
 
 The saver shares the same world save as the app, so your castaway's memories carry over.
 
+## Release app bundle
+
+Build a standalone `Idle Isle.app`:
+
+```sh
+./Tools/build_app.sh
+open build
+```
+
 ## Documentation
 
 - [Vision](Documentation/VISION.md) — what Idle Isle is and is not.
