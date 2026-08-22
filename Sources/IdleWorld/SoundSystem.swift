@@ -12,8 +12,10 @@ final class SoundSystem {
     private let engine = AVAudioEngine()
     private let surfPlayer = AVAudioPlayerNode()
     private let firePlayer = AVAudioPlayerNode()
+    private let rainPlayer = AVAudioPlayerNode()
     private let surfMixer = AVAudioMixerNode()
     private let fireMixer = AVAudioMixerNode()
+    private let rainMixer = AVAudioMixerNode()
 
     private let sampleRate: Double = 44_100
     private var started = false
@@ -23,8 +25,10 @@ final class SoundSystem {
 
         engine.attach(surfPlayer)
         engine.attach(firePlayer)
+        engine.attach(rainPlayer)
         engine.attach(surfMixer)
         engine.attach(fireMixer)
+        engine.attach(rainMixer)
 
         guard let format = AVAudioFormat(
             standardFormatWithSampleRate: sampleRate,
@@ -33,11 +37,14 @@ final class SoundSystem {
 
         engine.connect(surfPlayer, to: surfMixer, format: format)
         engine.connect(firePlayer, to: fireMixer, format: format)
+        engine.connect(rainPlayer, to: rainMixer, format: format)
         engine.connect(surfMixer, to: engine.mainMixerNode, format: format)
         engine.connect(fireMixer, to: engine.mainMixerNode, format: format)
+        engine.connect(rainMixer, to: engine.mainMixerNode, format: format)
 
         surfPlayer.volume = 0
         firePlayer.volume = 0
+        rainPlayer.volume = 0
 
         do {
             engine.prepare()
@@ -48,8 +55,10 @@ final class SoundSystem {
 
         surfPlayer.scheduleBuffer(makeSurfBuffer(), at: nil, options: [.loops])
         firePlayer.scheduleBuffer(makeFireBuffer(), at: nil, options: [.loops])
+        rainPlayer.scheduleBuffer(makeRainBuffer(), at: nil, options: [.loops])
         surfPlayer.play()
         firePlayer.play()
+        rainPlayer.play()
         started = true
     }
 
@@ -70,6 +79,9 @@ final class SoundSystem {
         let distance = abs(world.characterX - SimulationEngine.campfireX)
         let fireTarget = Float(max(0, 0.16 * (1 - distance / 0.20)))
         firePlayer.volume += (fireTarget - firePlayer.volume) * 0.02
+
+        let rainTarget = Float(world.rain * 0.13)
+        rainPlayer.volume += (rainTarget - rainPlayer.volume) * 0.02
     }
 
     // MARK: - Buffer synthesis
@@ -122,6 +134,27 @@ final class SoundSystem {
                 let white = Float(generator.unitInterval()) * 2 - 1
                 samples[start + j] += white * envelope * amplitude
             }
+        }
+
+        crossfadeLoopHead(samples, frameCount: Int(frameCount))
+        buffer.frameLength = frameCount
+        return buffer
+    }
+
+    /// Steady, brighter hiss than the surf: rain on water and sand.
+    private func makeRainBuffer() -> AVAudioPCMBuffer {
+        let duration = 4.0
+        let frameCount = AVAudioFrameCount(duration * sampleRate)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+        let samples = buffer.floatChannelData![0]
+
+        var last: Float = 0
+        var generator = SeededGenerator(seed: 0x5241494E)
+        for i in 0..<Int(frameCount) {
+            let white = Float(generator.unitInterval()) * 2 - 1
+            last += 0.30 * (white - last)
+            samples[i] = last
         }
 
         crossfadeLoopHead(samples, frameCount: Int(frameCount))

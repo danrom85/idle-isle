@@ -6,18 +6,16 @@ import IdleWorld
 
 extension Notification.Name {
     static let idleIsleToggleDebugOverlay = Notification.Name("IdleIsleToggleDebugOverlay")
-    static let idleIsleToggleSound = Notification.Name("IdleIsleToggleSound")
 }
 
 struct ContentView: View {
     @State private var scene: IslandScene
-    @State private var settings: AppSettings
+    @ObservedObject private var settingsModel = AppSettingsModel.shared
 
     init() {
         let size = CGSize(width: 1280, height: 720)
         let runtime = WorldRuntime()
         _scene = State(initialValue: IslandScene(size: size, runtime: runtime))
-        _settings = State(initialValue: SettingsPersistence().load() ?? AppSettings())
     }
 
     var body: some View {
@@ -26,16 +24,14 @@ struct ContentView: View {
             .ignoresSafeArea()
             .onAppear {
                 scene.scaleMode = .aspectFill
-                scene.setSoundEnabled(settings.soundEnabled)
+                scene.setSoundEnabled(settingsModel.settings.soundEnabled)
+            }
+            .onChange(of: settingsModel.settings) { _, newSettings in
+                scene.setSoundEnabled(newSettings.soundEnabled)
             }
             .onReceive(NotificationCenter.default.publisher(for: .idleIsleToggleDebugOverlay)) { _ in
                 let labels = scene.children.compactMap { $0 as? SKLabelNode }
                 labels.first?.isHidden.toggle()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .idleIsleToggleSound)) { _ in
-                settings.soundEnabled.toggle()
-                scene.setSoundEnabled(settings.soundEnabled)
-                try? SettingsPersistence().save(settings)
             }
     }
 }

@@ -19,13 +19,14 @@ struct IdleIsleApp: App {
                 .keyboardShortcut("d", modifiers: [.command])
 
                 Button("Toggle Ambience") {
-                    NotificationCenter.default.post(
-                        name: .idleIsleToggleSound,
-                        object: nil
-                    )
+                    AppSettingsModel.shared.settings.soundEnabled.toggle()
                 }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
             }
+        }
+
+        Settings {
+            SettingsView()
         }
     }
 }
