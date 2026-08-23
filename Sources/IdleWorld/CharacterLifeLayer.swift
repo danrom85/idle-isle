@@ -11,10 +11,12 @@ final class CharacterLifeLayer: SKNode {
     private let activityLayer = SKNode()
     private let castawayRig = SKNode()
     private let castawayShadow = SKShapeNode(ellipseOf: CGSize(width: 44, height: 11))
-    private let torso = SKShapeNode(rectOf: CGSize(width: 25, height: 43), cornerRadius: 8)
+    private let torso = SKNode()
     private let headGroup = SKNode()
     private let head = SKShapeNode(circleOfRadius: 14)
     private let hat = SKShapeNode(ellipseOf: CGSize(width: 38, height: 11))
+    /// Whichever node carries the straw hat in the current art mode.
+    private var flinchNode: SKNode?
     private let leftArm = SKNode()
     private let rightArm = SKNode()
     private let leftLeg = SKNode()
@@ -102,8 +104,8 @@ final class CharacterLifeLayer: SKNode {
         duckOffset = -2.5
 
         let reaction = 0.35 * (1 - world.memory.coconutFamiliarity)
-        hat.removeAction(forKey: "coconutFlinch")
-        hat.run(.sequence([
+        flinchNode?.removeAction(forKey: "coconutFlinch")
+        flinchNode?.run(.sequence([
             .rotate(byAngle: reaction, duration: 0.09),
             .rotate(byAngle: -reaction * 2, duration: 0.12),
             .rotate(toAngle: 0, duration: 0.14)
@@ -187,12 +189,63 @@ final class CharacterLifeLayer: SKNode {
         let shorts = NSColor(calibratedRed: 0.24, green: 0.35, blue: 0.45, alpha: 1)
 
         torso.name = "torso"
-        torso.fillColor = shirt
-        torso.strokeColor = NSColor.black.withAlphaComponent(0.10)
-        torso.lineWidth = 1
-        torso.path = Self.torsoPath()
         torso.position = CGPoint(x: 0, y: 24)
         castawayRig.addChild(torso)
+
+        if let torsoTex = ArtAssets.texture("castaway_torso") {
+            // Painted shirt: 44x52 design points, centered on the rig origin.
+            let torsoSprite = SKSpriteNode(texture: torsoTex)
+            torsoSprite.size = CGSize(width: 44, height: 52)
+            torso.addChild(torsoSprite)
+        } else {
+            buildVectorTorso(shirt: shirt)
+        }
+
+        if let headTex = ArtAssets.texture("castaway_head") {
+            // Painted head: face, hair, and hat in one piece; 42x40 design
+            // points spanning headGroup coords x -21..21, y -16..24.
+            let headSprite = SKSpriteNode(texture: headTex)
+            headSprite.size = CGSize(width: 42, height: 40)
+            headSprite.position = CGPoint(x: 0, y: 4)
+            headGroup.addChild(headSprite)
+            flinchNode = headSprite
+        } else {
+            flinchNode = hat
+            buildVectorHead(skin: skin)
+        }
+
+        headGroup.position = CGPoint(x: 0, y: 58)
+        castawayRig.addChild(headGroup)
+
+        buildLimb(leftArm, length: 31, width: 8, color: skin)
+        buildLimb(rightArm, length: 31, width: 8, color: skin)
+        addLimbCap(to: leftArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
+        addLimbCap(to: rightArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
+        leftArm.position = CGPoint(x: -13, y: 42)
+        rightArm.position = CGPoint(x: 13, y: 42)
+        castawayRig.addChild(leftArm)
+        castawayRig.addChild(rightArm)
+
+        buildLimb(leftLeg, length: 31, width: 10, color: shorts)
+        buildLimb(rightLeg, length: 31, width: 10, color: shorts)
+        addLimbCap(to: leftLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
+        addLimbCap(to: rightLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
+        leftLeg.position = CGPoint(x: -7, y: 10)
+        rightLeg.position = CGPoint(x: 7, y: 10)
+        leftLeg.zPosition = -1
+        rightLeg.zPosition = -1
+        castawayRig.addChild(leftLeg)
+        castawayRig.addChild(rightLeg)
+    }
+
+    /// Vector stand-in shirt when the painted torso is unavailable.
+    private func buildVectorTorso(shirt: NSColor) {
+        let shape = SKShapeNode(rectOf: CGSize(width: 25, height: 43), cornerRadius: 8)
+        shape.fillColor = shirt
+        shape.strokeColor = NSColor.black.withAlphaComponent(0.10)
+        shape.lineWidth = 1
+        shape.path = Self.torsoPath()
+        torso.addChild(shape)
 
         let belt = SKShapeNode(rectOf: CGSize(width: 21, height: 4), cornerRadius: 2)
         belt.name = "belt"
@@ -200,11 +253,12 @@ final class CharacterLifeLayer: SKNode {
         belt.strokeColor = .clear
         belt.position.y = -14
         torso.addChild(belt)
+    }
 
+    /// Vector stand-in face when the painted head is unavailable.
+    private func buildVectorHead(skin: NSColor) {
         head.fillColor = skin
         head.strokeColor = .clear
-        head.position = CGPoint(x: 0, y: 0)
-        headGroup.position = CGPoint(x: 0, y: 58)
         headGroup.addChild(head)
 
         for x in [-4.5, 4.5] {
@@ -236,27 +290,6 @@ final class CharacterLifeLayer: SKNode {
         hatCrown.lineWidth = 1
         hatCrown.position = CGPoint(x: 0, y: 16)
         headGroup.addChild(hatCrown)
-        castawayRig.addChild(headGroup)
-
-        buildLimb(leftArm, length: 31, width: 8, color: skin)
-        buildLimb(rightArm, length: 31, width: 8, color: skin)
-        addLimbCap(to: leftArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
-        addLimbCap(to: rightArm, at: 30, size: CGSize(width: 8, height: 8), color: skin)
-        leftArm.position = CGPoint(x: -13, y: 42)
-        rightArm.position = CGPoint(x: 13, y: 42)
-        castawayRig.addChild(leftArm)
-        castawayRig.addChild(rightArm)
-
-        buildLimb(leftLeg, length: 31, width: 10, color: shorts)
-        buildLimb(rightLeg, length: 31, width: 10, color: shorts)
-        addLimbCap(to: leftLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
-        addLimbCap(to: rightLeg, at: 29, size: CGSize(width: 11, height: 6), color: NSColor(calibratedRed: 0.36, green: 0.22, blue: 0.12, alpha: 1))
-        leftLeg.position = CGPoint(x: -7, y: 10)
-        rightLeg.position = CGPoint(x: 7, y: 10)
-        leftLeg.zPosition = -1
-        rightLeg.zPosition = -1
-        castawayRig.addChild(leftLeg)
-        castawayRig.addChild(rightLeg)
     }
 
     /// A soft pear silhouette: narrower shoulders, fuller hem.

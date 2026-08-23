@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head><style>
+  body { margin: 0; background: #FF00FF; }
+  .sheet { display: inline-block; background: #FF00FF; line-height: 0; }
+</style></head><body>
+  <div class="sheet" id="head"></div>
+  <div class="sheet" id="torso"></div>
+  <script>
+    fetch('castaway_head.svg').then(r => r.text()).then(t => {
+      document.getElementById('head').innerHTML = t;
+      return fetch('castaway_torso.svg');
+    }).then(t => {
+      document.getElementById('torso').innerHTML = t;
+      document.title = 'READY';
+    });
+  </script>
+</body></html>

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 40" width="168" height="160">
+  <defs>
+    <radialGradient id="skin" cx="0.38" cy="0.32" r="1.05">
+      <stop offset="0" stop-color="#D29A66"/>
+      <stop offset="0.55" stop-color="#C28552"/>
+      <stop offset="1" stop-color="#9E6636"/>
+    </radialGradient>
+    <linearGradient id="brim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EDBE55"/>
+      <stop offset="1" stop-color="#C99B3F"/>
+    </linearGradient>
+    <radialGradient id="crown" cx="0.35" cy="0.25" r="1">
+      <stop offset="0" stop-color="#F6D57E"/>
+      <stop offset="1" stop-color="#DFAE4C"/>
+    </radialGradient>
+  </defs>
+
+  <!-- wind-blown hair escaping behind the head -->
+  <g transform="rotate(-10.3 18 17)">
+    <ellipse cx="18" cy="17" rx="10" ry="4.5" fill="#52301A"/>
+    <path d="M11,16.2 Q15,14.4 19,15.4 M12.5,18.4 Q16,17 20,17.8"
+          stroke="#3C2211" stroke-width="0.8" fill="none" opacity="0.7" stroke-linecap="round"/>
+  </g>
+
+  <!-- head -->
+  <circle cx="21" cy="24" r="14" fill="url(#skin)"/>
+  <!-- jaw shading -->
+  <path d="M9.5,27 A14,14 0 0 0 32.5,27 A14,14 0 0 1 9.5,27 Z"
+        fill="#8F5B30" opacity="0.45"/>
+  <!-- sun-warm cheek -->
+  <ellipse cx="13.5" cy="26" rx="2.6" ry="1.7" fill="#B06A3C" opacity="0.5"/>
+  <ellipse cx="28.5" cy="26" rx="2.6" ry="1.7" fill="#B06A3C" opacity="0.5"/>
+
+  <!-- eyes -->
+  <circle cx="16.5" cy="21" r="1.6" fill="#262626"/>
+  <circle cx="25.5" cy="21" r="1.6" fill="#262626"/>
+  <circle cx="17" cy="20.5" r="0.5" fill="#FFFFFF" opacity="0.85"/>
+  <circle cx="26" cy="20.5" r="0.5" fill="#FFFFFF" opacity="0.85"/>
+
+  <!-- content little smile -->
+  <path d="M19,28.6 Q21,30.2 23,28.6" stroke="#7C4A26" stroke-width="1"
+        fill="none" opacity="0.75" stroke-linecap="round"/>
+
+  <!-- straw hat: brim first, then crown -->
+  <ellipse cx="21" cy="14" rx="19" ry="5.5" fill="url(#brim)"/>
+  <path d="M4,15.4 Q21,21.4 38,15.4 Q21,18.9 4,15.4 Z" fill="#A87F31" opacity="0.55"/>
+  <g stroke="#B08A38" stroke-width="0.6" fill="none" opacity="0.5">
+    <path d="M5,13.4 Q21,17.6 37,13.4"/>
+    <path d="M6,11.9 Q21,15.9 36,11.9"/>
+  </g>
+  <ellipse cx="21" cy="8" rx="11" ry="6.5" fill="url(#crown)"/>
+  <path d="M12.6,6.2 Q15,3.4 19.4,2.4" stroke="#FBEBB4" stroke-width="1.6"
+        fill="none" opacity="0.8" stroke-linecap="round"/>
+</svg>
