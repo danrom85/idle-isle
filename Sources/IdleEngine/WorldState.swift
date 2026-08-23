@@ -139,7 +139,11 @@ public struct WorldState: Codable, Equatable, Sendable {
     public var hunger: Double = 0.18
     public var curiosity: Double = 0.45
     public var characterX: Double = 0.45
+    /// Position on the island's depth axis: 0 at the back edge, 1 at the
+    /// waterline. The island is a real place now, not a tightrope.
+    public var characterY: Double = 0.5
     public var destinationX: Double = 0.45
+    public var destinationY: Double = 0.5
     public var activityTimeRemaining: TimeInterval = 2
     public var nextAmbientEventIn: TimeInterval = 5
 
@@ -176,7 +180,9 @@ public struct WorldState: Codable, Equatable, Sendable {
         hunger = try container.decodeIfPresent(Double.self, forKey: .hunger) ?? 0.18
         curiosity = try container.decodeIfPresent(Double.self, forKey: .curiosity) ?? 0.45
         characterX = try container.decodeIfPresent(Double.self, forKey: .characterX) ?? 0.45
+        characterY = try container.decodeIfPresent(Double.self, forKey: .characterY) ?? 0.5
         destinationX = try container.decodeIfPresent(Double.self, forKey: .destinationX) ?? 0.45
+        destinationY = try container.decodeIfPresent(Double.self, forKey: .destinationY) ?? 0.5
         activityTimeRemaining = try container.decodeIfPresent(TimeInterval.self, forKey: .activityTimeRemaining) ?? 2
         nextAmbientEventIn = try container.decodeIfPresent(TimeInterval.self, forKey: .nextAmbientEventIn) ?? 5
         schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
@@ -203,7 +209,9 @@ public struct WorldState: Codable, Equatable, Sendable {
         case hunger
         case curiosity
         case characterX
+        case characterY
         case destinationX
+        case destinationY
         case activityTimeRemaining
         case nextAmbientEventIn
         case schemaVersion

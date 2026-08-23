@@ -50,7 +50,8 @@ final class SimulationEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.activity, .carryingFish)
         XCTAssertEqual(engine.state.fish?.state, .carried)
         XCTAssertEqual(engine.state.memory.fishCaught, 1)
-        XCTAssertEqual(engine.state.destinationX, SimulationEngine.cookingSpotX, accuracy: 0.001)
+        XCTAssertEqual(engine.state.destinationX, SimulationEngine.cookingSpot.x, accuracy: 0.001)
+        XCTAssertEqual(engine.state.destinationY, SimulationEngine.cookingSpot.y, accuracy: 0.001)
         XCTAssertGreaterThan(engine.state.hunger, 0.79)
     }
 
@@ -58,7 +59,8 @@ final class SimulationEngineTests: XCTestCase {
         var state = WorldState()
         state.activity = .cookingFish
         state.hunger = 0.8
-        state.characterX = SimulationEngine.campfireX
+        state.characterX = SimulationEngine.cookingSpot.x
+        state.characterY = SimulationEngine.cookingSpot.y
         state.activityTimeRemaining = 0.05
         state.fish = WorldState.Fish(state: .cooking, cookingProgress: 0.99)
 
@@ -171,19 +173,29 @@ final class SimulationEngineTests: XCTestCase {
         try? FileManager.default.removeItem(at: temporaryDirectory)
     }
 
-    func testStormsBringRainUnderHeavyCloud() {
+    func testRainDriftsInWhenAStormIsRolling() {
+        // A storm on the horizon: rain eases up toward its target rather
+        // than snapping on.
         var state = WorldState()
-        state.cloudCover = 0.9
-        state.targetCloudCover = 0.9
-        state.nextWeatherChangeIn = 0.05
+        state.targetRain = 0.8
+        state.nextWeatherChangeIn = 999
 
         let engine = SimulationEngine(seed: 11, initialState: state)
+        for _ in 0..<300 { _ = engine.advance(by: 0.1) }
 
-        // Advance well past a few weather cycles; some cycle must pick up
-        // rain given the near-total cloud cover.
-        for _ in 0..<600 { _ = engine.advance(by: 0.1) }
+        XCTAssertGreaterThan(engine.state.rain, 0.4)
+    }
 
-        XCTAssertGreaterThan(engine.state.rain, 0.05)
+    func testRainFadesAfterTheStormPasses() {
+        // Storm passes: target clears, rain drifts back toward zero.
+        var state = WorldState()
+        state.rain = 0.8
+        state.targetRain = 0
+
+        let engine = SimulationEngine(seed: 11, initialState: state)
+        for _ in 0..<900 { _ = engine.advance(by: 0.1) }
+
+        XCTAssertLessThan(engine.state.rain, 0.05)
     }
 
     func testClearSkiesNeverRain() {
@@ -214,26 +226,39 @@ final class SimulationEngineTests: XCTestCase {
         for _ in 0..<400 { _ = engine.advance(by: 0.1) }
 
         XCTAssertGreaterThan(engine.state.rain, 0.55)
+        let atShade = SimulationEngine.distance(
+            SIMD2(x: engine.state.characterX, y: engine.state.characterY),
+            SimulationEngine.palmShade
+        ) < 0.05
+        let headingToShade = SimulationEngine.distance(
+            SIMD2(x: engine.state.destinationX, y: engine.state.destinationY),
+            SimulationEngine.palmShade
+        ) < 0.03
         XCTAssertTrue(
-            engine.state.destinationX == SimulationEngine.palmShadeX
-                || abs(engine.state.characterX - SimulationEngine.palmShadeX) < 0.05,
-            "expected shelter under the palm, got x=\(engine.state.characterX) dest=\(engine.state.destinationX)"
+            atShade || headingToShade,
+            "expected shelter under the palm, got (\(engine.state.characterX), \(engine.state.characterY))"
         )
     }
 
     func testStrollsNeverParkInsideTheCampfire() {
         let engine = SimulationEngine(seed: 23)
+        var strolls = 0
 
-        for _ in 0..<3000 {
+        for _ in 0..<4000 {
             _ = engine.advance(by: 0.1)
             let state = engine.state
             if state.activity == .walking {
+                strolls += 1
+                let d = SimulationEngine.distance(
+                    SIMD2(x: state.destinationX, y: state.destinationY),
+                    SimulationEngine.campfire
+                )
                 XCTAssertGreaterThanOrEqual(
-                    abs(state.destinationX - SimulationEngine.campfireX),
-                    0.06,
-                    "stroll destination \(state.destinationX) lands inside the campfire"
+                    d, 0.085,
+                    "stroll destination (\(state.destinationX), \(state.destinationY)) lands inside the campfire"
                 )
             }
         }
+        XCTAssertGreaterThan(strolls, 20, "expected plenty of strolls to validate against")
     }
 }

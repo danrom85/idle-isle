@@ -21,14 +21,29 @@ public struct SeededGenerator: RandomNumberGenerator, Sendable {
 }
 
 public final class SimulationEngine {
-    /// Island landmarks, normalized 0...1 across the walkable sand.
+    /// Island landmarks in normalized (u, v): u spans the sand 0...1 left
+    /// to right, v spans 0...1 from the back edge to the waterline.
     /// Renderers derive every campfire and fishing-spot visual from these so
     /// the simulation and presentation can never drift apart.
-    public static let fishingSpotX = 0.24
-    public static let campfireX = 0.65
-    public static let palmShadeX = 0.72
+    public static let fishingSpot = SIMD2<Double>(x: 0.24, y: 0.82)
+    public static let campfire = SIMD2<Double>(x: 0.65, y: 0.52)
     /// Where he stands to tend the fire: just beside it, never inside it.
-    public static let cookingSpotX = 0.585
+    public static let cookingSpot = SIMD2<Double>(x: 0.585, y: 0.56)
+    public static let palmShade = SIMD2<Double>(x: 0.73, y: 0.36)
+
+    /// One v unit covers far less screen distance than one u unit; this
+    /// factor converts v into u-equivalents so walking speed feels uniform.
+    static let vScale = 0.233
+
+    static func distance(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> Double {
+        let dx = a.x - b.x
+        let dy = (a.y - b.y) / vScale
+        return norm(SIMD2(x: dx, y: dy))
+    }
+
+    static func norm(_ v: SIMD2<Double>) -> Double {
+        (v.x * v.x + v.y * v.y).squareRoot()
+    }
 
     public private(set) var state: WorldState
     private var random: SeededGenerator
@@ -114,6 +129,7 @@ public final class SimulationEngine {
         case .walking, .carryingFish:
             let windResistance = 1 - state.wind * 0.18
             state.memory.walkingDistance += delta * 0.085 * windResistance
+            // (position integration happens in updateCharacter)
         case .fishing:
             state.memory.fishingSeconds += delta
         case .watchingOcean:
@@ -123,7 +139,8 @@ public final class SimulationEngine {
         }
 
         // Time near the fire or tending it from beside counts as campfire time.
-        if abs(state.characterX - Self.campfireX) < 0.09 || abs(state.characterX - Self.cookingSpotX) < 0.03 {
+        let here = SIMD2(x: state.characterX, y: state.characterY)
+        if Self.distance(here, Self.campfire) < 0.1 || Self.distance(here, Self.cookingSpot) < 0.04 {
             state.memory.campfireSeconds += delta
         }
         if state.characterX > 0.68 { state.memory.palmShadeSeconds += delta }
@@ -132,12 +149,16 @@ public final class SimulationEngine {
     private func updateCharacter(by delta: TimeInterval) {
         switch state.activity {
         case .walking, .carryingFish:
-            let direction = state.destinationX >= state.characterX ? 1.0 : -1.0
             let windResistance = 1 - state.wind * 0.18
-            state.characterX += direction * delta * 0.085 * windResistance
+            walkToward(destination: SIMD2(x: state.destinationX, y: state.destinationY),
+                       by: delta * windResistance)
             state.energy = max(0, state.energy - delta * 0.007)
-            if abs(state.destinationX - state.characterX) < 0.01 {
+            if Self.distance(
+                SIMD2(x: state.characterX, y: state.characterY),
+                SIMD2(x: state.destinationX, y: state.destinationY)
+            ) < 0.008 {
                 state.characterX = state.destinationX
+                state.characterY = state.destinationY
                 if state.activity == .carryingFish {
                     beginCooking()
                 } else {
@@ -205,7 +226,8 @@ public final class SimulationEngine {
             switch fish.state {
             case .caught, .carried:
                 state.fish?.state = .carried
-                state.destinationX = Self.cookingSpotX
+                state.destinationX = Self.cookingSpot.x
+                state.destinationY = Self.cookingSpot.y
                 begin(.carryingFish, duration: 12)
                 return
             case .cooking:
@@ -226,8 +248,9 @@ public final class SimulationEngine {
 
         // A downpour sends him to wait beneath the palm until it eases.
         if state.rain > 0.55 {
-            if abs(state.characterX - Self.palmShadeX) > 0.03 {
-                state.destinationX = Self.palmShadeX
+            if distanceTo( Self.palmShade) > 0.03 {
+                state.destinationX = Self.palmShade.x
+                state.destinationY = Self.palmShade.y
                 begin(.walking, duration: 12)
             } else {
                 begin(.resting, duration: randomDuration(6...10))
@@ -236,8 +259,9 @@ public final class SimulationEngine {
         }
 
         if state.hunger > 0.62 && state.dayPhase != .night {
-            state.destinationX = Self.fishingSpotX
-            if abs(state.characterX - state.destinationX) > 0.025 {
+            state.destinationX = Self.fishingSpot.x
+            state.destinationY = Self.fishingSpot.y
+            if distanceTo( Self.fishingSpot) > 0.025 {
                 begin(.walking, duration: 12)
             } else {
                 begin(.fishing, duration: randomDuration(6...10))
@@ -246,8 +270,10 @@ public final class SimulationEngine {
         }
 
         if state.energy < 0.30 {
-            if state.memory.palmShadeWear > 0.35 && state.characterX < 0.68 {
-                state.destinationX = 0.72
+            if state.memory.palmShadeWear > 0.35
+                && distanceTo( Self.palmShade) > 0.05 {
+                state.destinationX = Self.palmShade.x
+                state.destinationY = Self.palmShade.y
                 begin(.walking, duration: 12)
             } else {
                 begin(.resting, duration: randomDuration(4...8))
@@ -268,7 +294,9 @@ public final class SimulationEngine {
 
         switch roll {
         case 0..<walkingChance:
-            state.destinationX = randomStrollDestination()
+            let spot = randomStrollPoint()
+            state.destinationX = spot.x
+            state.destinationY = spot.y
             begin(.walking, duration: 12)
         case walkingChance..<watchingThreshold:
             begin(.watchingOcean, duration: randomDuration(4...8))
@@ -282,7 +310,8 @@ public final class SimulationEngine {
     private func catchFish() {
         state.fish = WorldState.Fish(state: .carried, cookingProgress: 0)
         state.memory.fishCaught += 1
-        state.destinationX = Self.cookingSpotX
+        state.destinationX = Self.cookingSpot.x
+        state.destinationY = Self.cookingSpot.y
         begin(.carryingFish, duration: 12)
     }
 
@@ -325,12 +354,55 @@ public final class SimulationEngine {
     }
 
     /// A stroll can go anywhere on the sand except inside the campfire.
-    private func randomStrollDestination() -> Double {
-        let destination = strollGenerator.unitInterval() * 0.46 + 0.26
-        if abs(destination - Self.campfireX) < 0.06 {
-            return destination < Self.campfireX ? Self.campfireX - 0.07 : Self.campfireX + 0.07
+    private func randomStrollPoint() -> SIMD2<Double> {
+        for _ in 0..<24 {
+            let u = 0.14 + strollGenerator.unitInterval() * 0.72
+            let v = 0.16 + strollGenerator.unitInterval() * 0.68
+            let du = (u - 0.5) / 0.42
+            let dv = (v - 0.5) / 0.40
+            guard du * du + dv * dv <= 1 else { continue }
+            let spot = SIMD2(x: u, y: v)
+            if Self.distance(spot, Self.campfire) > 0.09 {
+                return spot
+            }
         }
-        return destination
+        return SIMD2(x: 0.35, y: 0.5)
+    }
+
+    /// Integrates movement toward a point, steering around the campfire so
+    /// nobody walks through the flames.
+    private func walkToward(destination: SIMD2<Double>, by delta: TimeInterval) {
+        var here = SIMD2(x: state.characterX, y: state.characterY)
+        var toDestination = destination - here
+        toDestination.y /= Self.vScale
+
+        // Repulsion from the fire: slide around it, never across it.
+        let fromFire = here - Self.campfire
+        let awayFromFire = SIMD2(x: fromFire.x, y: fromFire.y / Self.vScale)
+        let fireDistance = Self.norm(awayFromFire)
+        if fireDistance < 0.09, fireDistance > 1e-9 {
+            let strength = (0.09 - fireDistance) * 6
+            toDestination += SIMD2(
+                x: awayFromFire.x / fireDistance * strength,
+                y: awayFromFire.y / fireDistance * strength
+            )
+        }
+
+        let remaining = Self.norm(toDestination)
+        guard remaining > 1e-9 else { return }
+        let step = min(remaining, delta * 0.085)
+        let direction = toDestination / remaining
+        here += direction * step
+        here.y += (destination.y - here.y) * 0 // v handled below
+
+        state.characterX = here.x
+        // Convert the u-equivalent step back into v space.
+        let vStep = direction.y * step * Self.vScale
+        state.characterY += vStep
+    }
+
+    private func distanceTo(_ point: SIMD2<Double>) -> Double {
+        Self.distance(SIMD2(x: state.characterX, y: state.characterY), point)
     }
 
     private func updateAmbientEvents(by delta: TimeInterval) {

@@ -9,7 +9,6 @@ public final class IslandScene: SKScene {
     private var lastAmbientEvent: WorldState.AmbientEvent = .none
     private var whaleVisitCount = 0
     private var smokePuffCount = 0
-    private var currentWind: Double = 0.22
 
     private let sky = SKSpriteNode(texture: nil, size: .zero)
     private var skyTextures: [WorldState.DayPhase: SKTexture] = [:]
@@ -34,13 +33,10 @@ public final class IslandScene: SKScene {
     private let rainLayer = SKNode()
     private let fireflyLayer = SKNode()
 
-    private let palm = SKNode()
-    private let palmCrown = SKNode()
-    private let campfire = SKNode()
+
     // Flame and smoke draw above the castaway so standing at the fire
     // reads as being behind it, not on top of it.
-    private let fireFront = SKNode()
-    private let smokeLayer = SKNode()
+
     private let debugLabel = SKLabelNode(fontNamed: "Menlo")
 
     // Overlay presentation layers. One scene hosts everything so SpriteKit
@@ -170,19 +166,6 @@ public final class IslandScene: SKScene {
         addChild(memoryLayer)
         buildMemoryTraces()
 
-        buildPalm()
-        palm.zPosition = 6
-        addChild(palm)
-
-        buildCampfire()
-        campfire.zPosition = 8
-        addChild(campfire)
-
-        buildFireFront()
-
-        smokeLayer.zPosition = 1
-        fireFront.addChild(smokeLayer)
-
         debugLabel.fontSize = 13
         debugLabel.horizontalAlignmentMode = .left
         debugLabel.verticalAlignmentMode = .top
@@ -193,10 +176,7 @@ public final class IslandScene: SKScene {
 
         layoutWorld()
         animateWaves()
-        animatePalm()
-        animateFire()
         animateClouds()
-        beginSmoke()
 
         rodRack.zPosition = 5
         addChild(rodRack)
@@ -509,40 +489,41 @@ public final class IslandScene: SKScene {
 
         farWaves.position = CGPoint(x: 0, y: -size.height * 0.12)
         nearWaves.position = CGPoint(x: 0, y: -size.height * 0.36)
-        palm.position = CGPoint(x: size.width * 0.17, y: -size.height * 0.02)
-        campfire.position = CGPoint(
-            x: islandX(SimulationEngine.campfireX),
-            y: -size.height * 0.12
+        rodRack.position = CGPoint(
+            x: islandX(SimulationEngine.campfire.x - 0.09),
+            y: worldY(SimulationEngine.campfire.y)
         )
-        fireFront.position = campfire.position
-        rodRack.position = CGPoint(x: islandX(0.56), y: -size.height * 0.10)
         debugLabel.position = CGPoint(x: -size.width / 2 + 18, y: size.height / 2 - 18)
 
-        let fishingX = islandX(SimulationEngine.fishingSpotX)
-        let fireX = islandX(SimulationEngine.campfireX)
-        let palmX = -size.width * 0.29 + size.width * 0.58 * 0.72
+        // Ground decals sit at the true POI depths now.
+        let fishingX = islandX(SimulationEngine.fishingSpot.x)
+        let fishingY = worldY(SimulationEngine.fishingSpot.y)
+        let fireX = islandX(SimulationEngine.campfire.x)
+        let fireY = worldY(SimulationEngine.campfire.y)
+        let palmX = islandX(SimulationEngine.palmShade.x)
+        let palmY = worldY(SimulationEngine.palmShade.y)
         let sandY = -size.height * 0.10
 
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: fishingX, y: sandY - 4))
+        path.move(to: CGPoint(x: fishingX, y: fishingY - 4))
         path.addCurve(
-            to: CGPoint(x: palmX, y: sandY + 2),
-            control1: CGPoint(x: -size.width * 0.08, y: sandY - 22),
-            control2: CGPoint(x: size.width * 0.08, y: sandY + 18)
+            to: CGPoint(x: palmX, y: palmY + 2),
+            control1: CGPoint(x: -size.width * 0.08, y: (fishingY + palmY) / 2 - 20),
+            control2: CGPoint(x: size.width * 0.08, y: (fishingY + palmY) / 2 + 16)
         )
         pathWear.path = path
         pathWear.lineWidth = max(8, size.height * 0.018)
 
         fishingWear.path = CGPath(
-            ellipseIn: CGRect(x: fishingX - 38, y: sandY - 16, width: 76, height: 28),
+            ellipseIn: CGRect(x: fishingX - 38, y: fishingY - 14, width: 76, height: 26),
             transform: nil
         )
         campfireWear.path = CGPath(
-            ellipseIn: CGRect(x: fireX - 62, y: sandY - 22, width: 124, height: 40),
+            ellipseIn: CGRect(x: fireX - 62, y: fireY - 20, width: 124, height: 38),
             transform: nil
         )
         palmWear.path = CGPath(
-            ellipseIn: CGRect(x: palmX - 58, y: sandY - 20, width: 116, height: 36),
+            ellipseIn: CGRect(x: palmX - 58, y: palmY - 18, width: 116, height: 34),
             transform: nil
         )
     }
@@ -615,138 +596,17 @@ public final class IslandScene: SKScene {
         }
     }
 
-    private func buildPalm() {
-        if let trunk = ArtAssets.texture("palm_trunk"),
-           let fronds = ArtAssets.texture("palm_fronds") {
-            buildPalmFromArt(trunk: trunk, fronds: fronds)
-        } else {
-            buildVectorPalm()
-        }
-    }
+
 
     /// The hand-authored palm: painted trunk below, swaying frond sprite
     /// above. Displayed at half the baked resolution for crispness.
-    private func buildPalmFromArt(trunk: SKTexture, fronds: SKTexture) {
-        let trunkHeight: CGFloat = 178
-        let trunkWidth = trunkHeight * trunk.size().width / trunk.size().height
 
-        let trunkSprite = SKSpriteNode(texture: trunk)
-        trunkSprite.size = CGSize(width: trunkWidth, height: trunkHeight)
-        trunkSprite.position = CGPoint(x: -42, y: trunkHeight / 2)
-        trunkSprite.zPosition = 6
-        palm.addChild(trunkSprite)
 
-        let frondHeight: CGFloat = 116
-        let frondWidth = frondHeight * fronds.size().width / fronds.size().height
 
-        palmCrown.position = CGPoint(x: -42, y: trunkHeight + 4)
-        palm.addChild(palmCrown)
-        let frondSprite = SKSpriteNode(texture: fronds)
-        frondSprite.size = CGSize(width: frondWidth, height: frondHeight)
-        palmCrown.addChild(frondSprite)
-    }
 
-    private func buildVectorPalm() {
-        // Trunk: stacked segments leaning into a gentle curve.
-        let trunkLight = NSColor(calibratedRed: 0.49, green: 0.31, blue: 0.15, alpha: 1)
-        let trunkDark = NSColor(calibratedRed: 0.38, green: 0.23, blue: 0.11, alpha: 1)
 
-        for index in 0..<6 {
-            let segment = SKShapeNode(rectOf: CGSize(width: 17 - CGFloat(index), height: 30), cornerRadius: 7)
-            segment.fillColor = index % 2 == 0 ? trunkDark : trunkLight
-            segment.strokeColor = NSColor.black.withAlphaComponent(0.12)
-            segment.lineWidth = 1
-            segment.position.y = 12 + CGFloat(index) * 26
-            // Lean increases toward the crown.
-            segment.position.x = -CGFloat(index) * CGFloat(index) * 1.6
-            segment.zRotation = -0.05 - CGFloat(index) * 0.02
-            palm.addChild(segment)
-        }
 
-        palmCrown.position = CGPoint(x: -40, y: 152)
-        palm.addChild(palmCrown)
 
-        // Coconuts tucked under the crown.
-        for offset in [CGPoint(x: -10, y: -8), CGPoint(x: 4, y: -12), CGPoint(x: -2, y: -18)] {
-            let coconut = SKShapeNode(circleOfRadius: 7)
-            coconut.fillColor = NSColor(calibratedRed: 0.33, green: 0.20, blue: 0.10, alpha: 1)
-            coconut.strokeColor = .clear
-            coconut.position = offset
-            palmCrown.addChild(coconut)
-        }
-
-        // Fronds: elongated leaves that droop outward, each with a center rib.
-        let angles: [Double] = [15, 55, 100, 145, 195, 250, 300, 345]
-        for (index, angleDegrees) in angles.enumerated() {
-            let angle = angleDegrees * .pi / 180
-            let drooping = sin(angle) < 0
-
-            let frond = SKNode()
-            frond.zRotation = angle
-
-            let length = CGFloat(95 + index % 3 * 14)
-            let blade = SKShapeNode(ellipseOf: CGSize(width: length, height: 20))
-            blade.fillColor = NSColor(
-                calibratedRed: 0.10 + CGFloat(index % 3) * 0.03,
-                green: 0.44 + CGFloat(index % 2) * 0.06,
-                blue: 0.19,
-                alpha: 1
-            )
-            blade.strokeColor = .clear
-            // Shift the blade so it grows outward from the crown.
-            blade.position.x = length / 2 + 14
-            if drooping { blade.position.y -= 6 }
-            frond.addChild(blade)
-
-            let rib = SKShapeNode(rectOf: CGSize(width: length * 0.85, height: 2.5), cornerRadius: 1)
-            rib.fillColor = NSColor(calibratedRed: 0.07, green: 0.30, blue: 0.13, alpha: 1)
-            rib.strokeColor = .clear
-            rib.position.x = length / 2 + 14
-            frond.addChild(rib)
-
-            palmCrown.addChild(frond)
-        }
-    }
-
-    private func buildCampfire() {
-        for offset in [-10.0, 10.0] {
-            let log = SKShapeNode(rectOf: CGSize(width: 45, height: 9), cornerRadius: 4)
-            log.fillColor = NSColor(calibratedRed: 0.30, green: 0.16, blue: 0.07, alpha: 1)
-            log.strokeColor = .clear
-            log.zRotation = offset < 0 ? 0.35 : -0.35
-            campfire.addChild(log)
-        }
-
-    }
-
-    /// The animated flame lives in its own overlay node so it can render in
-    /// front of the castaway while the log base stays behind him.
-    private func buildFireFront() {
-        fireFront.zPosition = 132
-        addChild(fireFront)
-
-        // Warm light pooling on the sand beneath the flames.
-        let glow = SKShapeNode(ellipseOf: CGSize(width: 92, height: 26))
-        glow.name = "fireGlow"
-        glow.fillColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.18, alpha: 0.22)
-        glow.strokeColor = .clear
-        glow.position.y = 4
-        fireFront.addChild(glow)
-
-        let outerFlame = SKShapeNode(ellipseOf: CGSize(width: 30, height: 52))
-        outerFlame.name = "flame"
-        outerFlame.fillColor = NSColor(calibratedRed: 0.98, green: 0.42, blue: 0.10, alpha: 0.96)
-        outerFlame.strokeColor = .clear
-        outerFlame.position.y = 30
-        fireFront.addChild(outerFlame)
-
-        let innerFlame = SKShapeNode(ellipseOf: CGSize(width: 16, height: 32))
-        innerFlame.name = "flameInner"
-        innerFlame.fillColor = NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.32, alpha: 0.95)
-        innerFlame.strokeColor = .clear
-        innerFlame.position.y = 24
-        fireFront.addChild(innerFlame)
-    }
 
     private func animateWaves() {
         farWaves.run(.repeatForever(.sequence([
@@ -773,67 +633,15 @@ public final class IslandScene: SKScene {
         }
     }
 
-    private func animatePalm() {
-        palmCrown.run(.repeatForever(.sequence([
-            .rotate(toAngle: -0.035, duration: 2.6, shortestUnitArc: true),
-            .rotate(toAngle: 0.035, duration: 2.6, shortestUnitArc: true)
-        ])))
-    }
 
-    private func animateFire() {
-        guard let flame = fireFront.childNode(withName: "flame") else { return }
-        flame.run(.repeatForever(.sequence([
-            .scaleY(to: 0.78, duration: 0.22),
-            .scaleY(to: 1.08, duration: 0.27),
-            .scaleY(to: 0.92, duration: 0.18)
-        ])))
 
-        if let inner = fireFront.childNode(withName: "flameInner") {
-            inner.run(.repeatForever(.sequence([
-                .scaleY(to: 1.14, duration: 0.19),
-                .scaleY(to: 0.82, duration: 0.24),
-                .scaleY(to: 1.05, duration: 0.16)
-            ])))
-        }
 
-        fireFront.childNode(withName: "fireGlow")?.run(.repeatForever(.sequence([
-            .fadeAlpha(to: 0.55, duration: 0.9),
-            .fadeAlpha(to: 1.0, duration: 1.1)
-        ])))
-    }
 
-    private func beginSmoke() {
-        smokeLayer.run(.repeatForever(.sequence([
-            .run { [weak self] in self?.spawnSmokePuff() },
-            .wait(forDuration: 1.25)
-        ])))
-    }
 
-    private func spawnSmokePuff() {
-        var generator = SeededGenerator(seed: UInt64(bitPattern: Int64(smokePuffCount)))
-        smokePuffCount += 1
 
-        let puff = SKShapeNode(circleOfRadius: CGFloat(6 + generator.unitInterval() * 5))
-        puff.fillColor = NSColor(calibratedWhite: 0.74, alpha: 0.30)
-        puff.strokeColor = .clear
-        puff.position = CGPoint(x: CGFloat(generator.unitInterval() * 8 - 4), y: 52)
-        smokeLayer.addChild(puff)
 
-        let drift = 8 + currentWind * 48 + CGFloat(generator.unitInterval() * 16 - 8)
-        let rise = 62 + generator.unitInterval() * 26
-        let duration = 2.7 + generator.unitInterval() * 1.1
-        puff.run(.sequence([
-            .group([
-                .moveBy(x: drift, y: rise, duration: duration),
-                .scale(to: 2.2, duration: duration),
-                .fadeOut(withDuration: duration)
-            ]),
-            .removeFromParent()
-        ]))
-    }
 
     private func render(_ state: WorldState) {
-        currentWind = state.wind
         sky.texture = skyTexture(for: state.dayPhase)
         ocean.texture = oceanTexture(for: state.dayPhase)
         positionCelestials(hour: state.simulatedHour)
@@ -844,11 +652,7 @@ public final class IslandScene: SKScene {
         clouds.speed = CGFloat(0.55 + state.wind * 1.6)
         farWaves.speed = CGFloat(0.72 + state.wind * 1.1)
         nearWaves.speed = CGFloat(0.78 + state.wind * 1.4)
-        palmCrown.speed = CGFloat(0.65 + state.wind * 1.7)
 
-        campfire.alpha = state.dayPhase == .day ? 0.72 : 1
-        fireFront.alpha = state.dayPhase == .day ? 0.85 : 1
-        smokeLayer.alpha = state.dayPhase == .day ? 0.55 : 0.8
 
         pathWear.alpha = CGFloat(state.memory.pathWear * 0.23)
         fishingWear.alpha = CGFloat(state.memory.fishingSpotWear * 0.30)
@@ -932,7 +736,11 @@ public final class IslandScene: SKScene {
             let coconut = SKShapeNode(circleOfRadius: 9)
             coconut.fillColor = NSColor(calibratedRed: 0.30, green: 0.16, blue: 0.07, alpha: 1)
             coconut.strokeColor = .clear
-            coconut.position = CGPoint(x: palm.position.x, y: palm.position.y + 145)
+            let palmPoint = CGPoint(
+                x: islandX(SimulationEngine.campfire.x + 0.14),
+                y: -size.height * 0.155
+            )
+            coconut.position = CGPoint(x: palmPoint.x, y: palmPoint.y + 145)
             coconut.zPosition = 15
             addChild(coconut)
             coconut.run(.sequence([
@@ -1013,6 +821,14 @@ public final class IslandScene: SKScene {
     /// Converts a normalized island X (0...1) into scene coordinates.
     private func islandX(_ normalizedX: Double) -> CGFloat {
         -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
+    }
+
+    /// Maps the island's depth axis (0 = back edge, 1 = waterline) to
+    /// screen height. Mirrors the depth layer's mapping.
+    private func worldY(_ normalizedY: Double) -> CGFloat {
+        let back = -size.height * 0.20
+        let front = -size.height * 0.055
+        return back + (front - back) * CGFloat(normalizedY)
     }
 
     // MARK: - Sky light

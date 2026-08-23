@@ -76,7 +76,9 @@ final class SoundSystem {
         let surfTarget = Float(min(0.32, 0.08 + 0.10 * world.tideLevel + 0.08 * world.wind))
         surfPlayer.volume += (surfTarget - surfPlayer.volume) * 0.02
 
-        let distance = abs(world.characterX - SimulationEngine.campfireX)
+        let dx = world.characterX - SimulationEngine.campfire.x
+        let dy = world.characterY - SimulationEngine.campfire.y
+        let distance = (dx * dx + dy * dy).squareRoot()
         let fireTarget = Float(max(0, 0.16 * (1 - distance / 0.20)))
         firePlayer.volume += (fireTarget - firePlayer.volume) * 0.02
 

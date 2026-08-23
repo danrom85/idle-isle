@@ -22,6 +22,16 @@ final class CharacterLifeLayer: SKNode {
 
     private let crab = SKNode()
     private let hermitCrab = SKNode()
+
+    // Scenery that shares the sand plane with the castaway lives here so
+    // z-ordering can follow depth every frame.
+    private let campfireGround = SKNode()
+    private let campfireFlame = SKNode()
+    private let fireSmoke = SKNode()
+    private let palmNode = SKNode()
+    private let palmCrownNode = SKNode()
+    private var smokePuffCount = 0
+    private var currentWind: Double = 0.22
     private let fishingRod = SKShapeNode()
     private let fishingLine = SKShapeNode()
     private let float = SKShapeNode(circleOfRadius: 4)
@@ -38,6 +48,8 @@ final class CharacterLifeLayer: SKNode {
 
         buildActivityProps()
         buildCastawayRig()
+        buildCampfire()
+        buildPalm()
         buildCrab()
         buildHermitCrab()
     }
@@ -47,11 +59,25 @@ final class CharacterLifeLayer: SKNode {
     }
 
     func update(by delta: TimeInterval, world: WorldState) {
+        currentWind = world.wind
         let crabState = crabEngine.advance(by: delta, world: world)
         renderCastaway(world)
         renderWorldActivity(world)
         renderCrab(crabState, world: world)
         renderHermitCrab(crabEngine.hermit, world: world)
+
+        // Everything on the sand plane sorts by depth: further back renders
+        // behind, closer to the waterline renders in front.
+        let base: CGFloat = 40
+        let v = CGFloat(world.characterY)
+        castawayRig.zPosition = base + v + 0.02
+        activityLayer.zPosition = base + v + 0.03
+        campfireGround.zPosition = base + SimulationEngine.campfire.y - 0.05
+        campfireFlame.zPosition = base + SimulationEngine.campfire.y + 0.05
+        fireSmoke.zPosition = base + SimulationEngine.campfire.y + 0.5
+        palmNode.zPosition = base + 0.30
+        crab.zPosition = base + 0.86
+        hermitCrab.zPosition = base + 0.80
         reactToAmbientEvent(world)
 
         // Applied after posing so the duck survives resetPose().
@@ -300,20 +326,13 @@ final class CharacterLifeLayer: SKNode {
     }
 
     private func renderCastaway(_ world: WorldState) {
-        let sandY = -size.height * 0.10
+        let sandY = worldY(world.characterY)
         let castawayX = worldX(world.characterX)
         let facing: CGFloat = world.destinationX >= world.characterX ? 1 : -1
         let time = CGFloat(world.elapsedTime)
         resetPose()
 
-        // Crossing the campfire zone arcs up and behind it instead of
-        // straight through the flames.
-        var groundedY = sandY
-        if world.activity == .walking || world.activity == .carryingFish {
-            let proximity = max(0, 1 - abs(world.characterX - SimulationEngine.campfireX) / 0.08)
-            groundedY -= CGFloat(proximity * proximity * 26)
-        }
-
+        let groundedY = sandY + (worldY(world.characterY) - sandY)
         castawayRig.position = CGPoint(x: castawayX, y: groundedY)
         castawayRig.xScale = facing
         castawayRig.alpha = 1
@@ -471,7 +490,7 @@ final class CharacterLifeLayer: SKNode {
 
     private func renderWorldActivity(_ world: WorldState) {
         let castawayX = worldX(world.characterX)
-        let sandY = -size.height * 0.10
+        let sandY = worldY(world.characterY)
         let fishing = world.activity == .fishing
         let watching = world.activity == .watchingOcean
         let resting = world.activity == .resting
@@ -494,9 +513,9 @@ final class CharacterLifeLayer: SKNode {
             renderSharedFish(world, at: CGPoint(x: castawayX - 18, y: sandY + 42), rotation: -0.18)
 
         case .cookingFish:
-            let fire = CGPoint(x: worldX(SimulationEngine.campfireX), y: sandY + 11)
+            let fire = CGPoint(x: worldX(SimulationEngine.campfire.x), y: worldY(SimulationEngine.campfire.y) + 11)
             // The fish hangs on a stick beside the flames, not inside them.
-            renderSharedFish(world, at: CGPoint(x: fire.x - 26, y: sandY + 30), rotation: -0.5)
+            renderSharedFish(world, at: CGPoint(x: fire.x - 26, y: fire.y + 19), rotation: -0.5)
             renderCookingSmoke(at: fire, world: world)
 
         case .eatingFish:
@@ -606,8 +625,161 @@ final class CharacterLifeLayer: SKNode {
         cookingSmoke.setScale(0.7 + rise * 0.8)
     }
 
+    /// Maps the island's depth axis (0 = back edge, 1 = waterline) to
+    /// screen height.
+    private func worldY(_ normalizedY: Double) -> CGFloat {
+        let back = -size.height * 0.20
+        let front = -size.height * 0.055
+        return back + (front - back) * CGFloat(normalizedY)
+    }
+
     private func worldX(_ normalizedX: Double) -> CGFloat {
         -size.width * 0.29 + CGFloat(normalizedX) * size.width * 0.58
+    }
+
+    /// The campfire, living in the depth layer so the castaway can walk
+    /// behind and in front of it naturally.
+    private func buildCampfire() {
+        let fireX = worldX(SimulationEngine.campfire.x)
+        let fireY = worldY(SimulationEngine.campfire.y)
+
+        campfireGround.position = CGPoint(x: fireX, y: fireY)
+        addChild(campfireGround)
+
+        for offset in [-10.0, 10.0] {
+            let log = SKShapeNode(rectOf: CGSize(width: 45, height: 9), cornerRadius: 4)
+            log.fillColor = NSColor(calibratedRed: 0.30, green: 0.16, blue: 0.07, alpha: 1)
+            log.strokeColor = .clear
+            log.zRotation = offset < 0 ? 0.35 : -0.35
+            campfireGround.addChild(log)
+        }
+
+        for index in 0..<7 {
+            let angle = Double(index) / 7 * .pi * 2
+            let stone = SKShapeNode(ellipseOf: CGSize(width: 11, height: 8))
+            stone.fillColor = NSColor(calibratedRed: 0.48, green: 0.47, blue: 0.45, alpha: 1)
+            stone.strokeColor = NSColor.black.withAlphaComponent(0.18)
+            stone.lineWidth = 1
+            stone.position = CGPoint(x: cos(angle) * 26, y: sin(angle) * 9 + 2)
+            campfireGround.addChild(stone)
+        }
+
+        campfireFlame.position = CGPoint(x: fireX, y: fireY)
+        addChild(campfireFlame)
+
+        let glow = SKShapeNode(ellipseOf: CGSize(width: 92, height: 26))
+        glow.name = "fireGlow"
+        glow.fillColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.18, alpha: 0.22)
+        glow.strokeColor = .clear
+        glow.position.y = 4
+        campfireFlame.addChild(glow)
+
+        let outerFlame = SKShapeNode(ellipseOf: CGSize(width: 30, height: 52))
+        outerFlame.name = "flame"
+        outerFlame.fillColor = NSColor(calibratedRed: 0.98, green: 0.42, blue: 0.10, alpha: 0.96)
+        outerFlame.strokeColor = .clear
+        outerFlame.position.y = 30
+        campfireFlame.addChild(outerFlame)
+
+        let innerFlame = SKShapeNode(ellipseOf: CGSize(width: 16, height: 32))
+        innerFlame.name = "flameInner"
+        innerFlame.fillColor = NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.32, alpha: 0.95)
+        innerFlame.strokeColor = .clear
+        innerFlame.position.y = 24
+        campfireFlame.addChild(innerFlame)
+
+        campfireFlame.childNode(withName: "flame")?.run(.repeatForever(.sequence([
+            .scaleY(to: 0.78, duration: 0.22),
+            .scaleY(to: 1.08, duration: 0.27),
+            .scaleY(to: 0.92, duration: 0.18)
+        ])))
+        campfireFlame.childNode(withName: "flameInner")?.run(.repeatForever(.sequence([
+            .scaleY(to: 1.14, duration: 0.19),
+            .scaleY(to: 0.82, duration: 0.24),
+            .scaleY(to: 1.05, duration: 0.16)
+        ])))
+        glow.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.55, duration: 0.9),
+            .fadeAlpha(to: 1.0, duration: 1.1)
+        ])))
+
+        fireSmoke.position = CGPoint(x: fireX, y: fireY)
+        addChild(fireSmoke)
+        fireSmoke.run(.repeatForever(.sequence([
+            .run { [weak self] in self?.spawnFireSmoke() },
+            .wait(forDuration: 1.25)
+        ])))
+    }
+
+    private func spawnFireSmoke() {
+        var generator = SeededGenerator(seed: UInt64(bitPattern: Int64(smokePuffCount)))
+        smokePuffCount += 1
+
+        let puff = SKShapeNode(circleOfRadius: CGFloat(6 + generator.unitInterval() * 5))
+        puff.fillColor = NSColor(calibratedWhite: 0.74, alpha: 0.30)
+        puff.strokeColor = .clear
+        puff.position = CGPoint(x: CGFloat(generator.unitInterval() * 8 - 4), y: 52)
+        fireSmoke.addChild(puff)
+
+        let drift = 8 + currentWind * 48 + CGFloat(generator.unitInterval() * 16 - 8)
+        let rise = 62 + generator.unitInterval() * 26
+        let duration = 2.7 + generator.unitInterval() * 1.1
+        puff.run(.sequence([
+            .group([
+                .moveBy(x: drift, y: rise, duration: duration),
+                .scale(to: 2.2, duration: duration),
+                .fadeOut(withDuration: duration)
+            ]),
+            .removeFromParent()
+        ]))
+    }
+
+    /// The painted palm: trunk below, swaying fronds above.
+    private func buildPalm() {
+        palmNode.position = CGPoint(
+            x: worldX(0.79),
+            y: worldY(0.30)
+        )
+        addChild(palmNode)
+
+        if let trunk = ArtAssets.texture("palm_trunk"),
+           let fronds = ArtAssets.texture("palm_fronds") {
+            let trunkHeight: CGFloat = 178
+            let trunkWidth = trunkHeight * trunk.size().width / trunk.size().height
+
+            let trunkSprite = SKSpriteNode(texture: trunk)
+            trunkSprite.size = CGSize(width: trunkWidth, height: trunkHeight)
+            trunkSprite.position = CGPoint(x: -42, y: trunkHeight / 2)
+            palmNode.addChild(trunkSprite)
+
+            palmCrownNode.position = CGPoint(x: -42, y: trunkHeight + 4)
+            let frondHeight: CGFloat = 116
+            let frondWidth = frondHeight * fronds.size().width / fronds.size().height
+            let frondSprite = SKSpriteNode(texture: fronds)
+            frondSprite.size = CGSize(width: frondWidth, height: frondHeight)
+            palmCrownNode.addChild(frondSprite)
+        } else {
+            buildVectorPalmCrown()
+        }
+
+        palmNode.addChild(palmCrownNode)
+        palmCrownNode.run(.repeatForever(.sequence([
+            .rotate(toAngle: -0.035, duration: 2.6, shortestUnitArc: true),
+            .rotate(toAngle: 0.035, duration: 2.6, shortestUnitArc: true)
+        ])))
+    }
+
+    /// Fallback fronds when the painted asset is unavailable.
+    private func buildVectorPalmCrown() {
+        for angle in stride(from: 0.0, to: 360.0, by: 60.0) {
+            let leaf = SKShapeNode(ellipseOf: CGSize(width: 115, height: 28))
+            leaf.fillColor = NSColor(calibratedRed: 0.14, green: 0.52, blue: 0.24, alpha: 1)
+            leaf.strokeColor = .clear
+            leaf.zRotation = angle * .pi / 180
+            leaf.position.x = cos(leaf.zRotation) * 35
+            leaf.position.y = sin(leaf.zRotation) * 16
+            palmCrownNode.addChild(leaf)
+        }
     }
 
     /// A smaller neighbor in a borrowed shell: rounder, earthier, slower.
@@ -659,10 +831,9 @@ final class CharacterLifeLayer: SKNode {
         guard hermit.isVisible else { return }
 
         let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
-        let hermitFireDetour = max(0, 1 - abs(hermit.positionX - SimulationEngine.campfireX) / 0.06)
         hermitCrab.position = CGPoint(
             x: worldX(hermit.positionX),
-            y: -size.height * 0.150 + tideOffset - CGFloat(hermitFireDetour * 12)
+            y: -size.height * 0.150 + tideOffset
         )
         hermitCrab.setScale(0.85)
 
@@ -697,10 +868,9 @@ final class CharacterLifeLayer: SKNode {
 
         let shoreX = worldX(state.positionX)
         let tideOffset = CGFloat((0.5 - world.tideLevel) * 16)
-        let fireDetour = max(0, 1 - abs(state.positionX - SimulationEngine.campfireX) / 0.06)
         crab.position = CGPoint(
             x: shoreX,
-            y: -size.height * 0.155 + tideOffset - CGFloat(fireDetour * 14)
+            y: -size.height * 0.155 + tideOffset
         )
 
         switch state.activity {
