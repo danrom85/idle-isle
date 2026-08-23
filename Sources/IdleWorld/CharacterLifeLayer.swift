@@ -782,10 +782,18 @@ final class CharacterLifeLayer: SKNode {
 
             let trunkSprite = SKSpriteNode(texture: trunk)
             trunkSprite.size = CGSize(width: trunkWidth, height: trunkHeight)
-            trunkSprite.position = CGPoint(x: -42, y: trunkHeight / 2)
+            // The cropped trunk art leans: its top tip sits left of the
+            // bitmap center. Nudge right so the tip lands on x = -42,
+            // where the crown's stem hangs.
+            let trunkTopOffset = -8.2
+            trunkSprite.position = CGPoint(x: -42 - trunkTopOffset, y: trunkHeight / 2)
             palmNode.addChild(trunkSprite)
 
-            palmCrownNode.position = CGPoint(x: -42, y: trunkHeight + 4)
+            // The frond stem sits below the fronds' bitmap center; raise
+            // the crown so the stem meets the trunk top instead of sinking
+            // into it. The sway then pivots naturally around the stem.
+            let stemDrop: CGFloat = 116 * (43.5 / 205)
+            palmCrownNode.position = CGPoint(x: -42, y: trunkHeight + stemDrop)
             let frondHeight: CGFloat = 116
             let frondWidth = frondHeight * fronds.size().width / fronds.size().height
             let frondSprite = SKSpriteNode(texture: fronds)
