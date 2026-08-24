@@ -543,7 +543,9 @@ final class CharacterLifeLayer: SKNode {
             renderFishing(at: CGPoint(x: castawayX, y: sandY), world: world)
 
         case .carryingFish:
-            renderSharedFish(world, at: CGPoint(x: castawayX - 18, y: sandY + 42), rotation: -0.18)
+            // Hauling the day's catch: it dangles from the raised paw,
+            // clear of his face.
+            renderSharedFish(world, at: CGPoint(x: castawayX + 30, y: sandY + 56), rotation: 0.30)
 
         case .cookingFish:
             let fire = CGPoint(x: worldX(SimulationEngine.campfire.x), y: worldY(SimulationEngine.campfire.y) + 11)
@@ -586,24 +588,55 @@ final class CharacterLifeLayer: SKNode {
         let finalLift = world.activityTimeRemaining < 1.1
         let cycle = world.elapsedTime.truncatingRemainder(dividingBy: 8)
         let isCasting = cycle < 1.0 && !finalLift
+
+        // The island is an ellipse; find the true sand edge at each x so
+        // the line lands in the water, not on the dry sand.
+        let a = size.width * 0.29
+        let b = size.height * 0.12
+        func sandEdgeY(at x: CGFloat) -> CGFloat {
+            let relX = max(-1.0, min(1.0, Double(x) / a))
+            return -size.height * 0.11 - b * sqrt(max(0, 1 - relX * relX))
+        }
+
+        // Where the float rests: just past the sand edge at its own x.
+        let floatRestX = castaway.x - 76
+        let floatRest = CGPoint(
+            x: floatRestX,
+            y: sandEdgeY(at: floatRestX) - 18
+        )
+        // The rod tip reaches up here when the catch is hauled in.
+        let rodTipLift = CGPoint(x: castaway.x - 34, y: castaway.y + 82)
+        // The line leaves the rod tip from this hand height.
+        let handPoint = CGPoint(x: castaway.x - 28, y: castaway.y + 12)
+
         let rodTip: CGPoint
         let floatPosition: CGPoint
 
         if isCasting {
             let progress = CGFloat(cycle)
             rodTip = CGPoint(x: castaway.x - 18 - 25 * progress, y: castaway.y + 72 + 8 * sin(progress * .pi))
-            floatPosition = CGPoint(x: castaway.x - 28 - 66 * progress, y: castaway.y + 12 - 70 * progress)
+            // The cast flies from the hand out over the water.
+            floatPosition = CGPoint(
+                x: handPoint.x + (floatRest.x - handPoint.x) * progress,
+                y: handPoint.y + (floatRest.y - handPoint.y) * progress
+                    + 46 * sin(progress * .pi)
+            )
         } else if finalLift {
             let lift = CGFloat(max(0, min(1, (1.1 - world.activityTimeRemaining) / 1.1)))
-            rodTip = CGPoint(x: castaway.x - 34, y: castaway.y + 82)
-            floatPosition = CGPoint(x: castaway.x - 76 + 42 * lift, y: castaway.y - 52 + 88 * lift)
+            rodTip = rodTipLift
+            // The fish leaps from the water up to the rod.
+            floatPosition = CGPoint(
+                x: floatRest.x + (rodTipLift.x - floatRest.x) * lift,
+                y: floatRest.y + (rodTipLift.y - floatRest.y) * lift
+            )
             caughtFish.isHidden = false
             caughtFish.position = CGPoint(x: floatPosition.x, y: floatPosition.y - 12)
             caughtFish.zRotation = sin(CGFloat(world.elapsedTime) * 9) * 0.22
         } else {
             let tension = world.activityTimeRemaining < 2.4 ? CGFloat((2.4 - world.activityTimeRemaining) / 2.4) : 0
             rodTip = CGPoint(x: castaway.x - 42 + tension * 5, y: castaway.y + 78 - tension * 8)
-            floatPosition = CGPoint(x: castaway.x - 94, y: castaway.y - 58 + tension * 5)
+            // Settled: the float bobs in the water past the sand edge.
+            floatPosition = CGPoint(x: floatRest.x, y: floatRest.y + tension * 5)
         }
 
         let rodPath = CGMutablePath()

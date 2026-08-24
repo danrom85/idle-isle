@@ -28,7 +28,7 @@ public final class SimulationEngine {
     public static let fishingSpot = SIMD2<Double>(x: 0.24, y: 0.82)
     public static let campfire = SIMD2<Double>(x: 0.65, y: 0.52)
     /// Where he stands to tend the fire: just beside it, never inside it.
-    public static let cookingSpot = SIMD2<Double>(x: 0.585, y: 0.56)
+    public static let cookingSpot = SIMD2<Double>(x: 0.52, y: 0.60)
     public static let palmShade = SIMD2<Double>(x: 0.73, y: 0.36)
 
     /// One v unit covers far less screen distance than one u unit; this
